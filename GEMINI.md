@@ -9,7 +9,8 @@
 このプロジェクトは、Next.js (App Router) と Prisma (PostgreSQL) を使用した在庫管理システム「Inventory」です。
 個人・小規模ビジネス向けに設計されており、商品管理、委託品管理、画像管理、帳票出力などの機能を備えています。
 
-以前の仕様書 `CLAUDE.md` は現在参照できないため、`README.md` および `prisma/schema.prisma` を仕様の正として参照してください。
+詳細な仕様については **`.claude/CLAUDE.md`** を参照してください。
+また、`README.md` や `prisma/schema.prisma` も実装の正として機能します。
 
 ## 技術スタック
 
