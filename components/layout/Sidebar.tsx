@@ -1,10 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useSidebar } from '@/lib/contexts/SidebarContext'
-import { Home, Package, Truck, FolderTree, Building2, MapPin, Ruler, Layers, LogOut } from 'lucide-react'
+import { Home, Package, Truck, FolderTree, Building2, MapPin, Ruler, Layers } from 'lucide-react'
 
 // v2.1 メニュー項目（アイコン付き）
 const menuItems = [
@@ -20,23 +20,7 @@ const menuItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const { isOpen, setOpen, isMobile, toggle } = useSidebar()
-
-  const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      })
-
-      if (response.ok) {
-        router.push('/login')
-        router.refresh()
-      }
-    } catch (error) {
-      console.error('Logout error:', error)
-    }
-  }
 
   return (
     <>
@@ -51,10 +35,10 @@ export function Sidebar() {
       {/* サイドバー本体 */}
       <div
         className={`
-          ${isMobile ? 'fixed left-0 top-0 z-50 h-screen' : 'relative'}
+          ${isMobile ? 'fixed left-0 top-0 z-50 h-screen' : 'sticky top-0 h-screen'}
           ${isOpen ? 'w-48' : 'w-16'}
           ${isMobile && !isOpen ? '-translate-x-full' : 'translate-x-0'}
-          bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white min-h-screen flex flex-col
+          bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white flex flex-col overflow-y-auto
           transition-all duration-300 ease-in-out
         `}
       >
@@ -102,26 +86,6 @@ export function Sidebar() {
             )
           })}
         </nav>
-
-        {/* ログアウトボタン */}
-        <div className="p-4 border-t border-gray-800">
-          {isOpen ? (
-            <Button onClick={handleLogout} variant="outline" className="w-full">
-              <LogOut className="w-4 h-4 mr-2" />
-              ログアウト
-            </Button>
-          ) : (
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              size="icon"
-              className="w-full"
-              title="ログアウト"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
       </div>
     </>
   )
