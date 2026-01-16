@@ -27,9 +27,31 @@ export interface Location extends NamedEntity {}
 /** 単位の基本型 v2.0 (新規) */
 export interface Unit extends NamedEntity {}
 
+/** タグの基本型 v2.2 (新規) */
+export interface TagV2 extends NamedEntity {
+    createdAt?: Date | string
+    updatedAt?: Date | string
+}
+
+/** 商品タグ中間型 v2.2 */
+export interface ProductTagRelation {
+    id: string
+    productId: string
+    tagId: string
+    tag?: TagV2
+}
+
+/** 委託品タグ中間型 v2.2 */
+export interface ConsignmentTagRelation {
+    id: string
+    consignmentId: string
+    tagId: string
+    tag?: TagV2
+}
+
 /** 商品数を含むマスタデータ */
 export interface NamedEntityWithCount extends NamedEntity {
-    _count?: { products: number }
+    _count?: { products: number; consignments?: number }
 }
 
 /** 商品画像の型 */
@@ -78,7 +100,7 @@ export interface ProductMaterial {
     order: number
 }
 
-/** 商品詳細型（リレーション含む）v2.1 */
+/** 商品詳細型（リレーション含む）v2.2 */
 export interface ProductWithRelations extends Product {
     manufacturer: Pick<Manufacturer, 'id' | 'name'> | null
     category: Pick<Category, 'id' | 'name'> | null
@@ -86,6 +108,7 @@ export interface ProductWithRelations extends Product {
     unit: Pick<Unit, 'id' | 'name'> | null
     images?: ProductImage[]
     materials?: ProductMaterial[]  // v2.1追加
+    tags?: ProductTagRelation[]    // v2.2追加
     totalCost?: string
 }
 
@@ -146,6 +169,11 @@ export interface UnitListResponse {
     units: NamedEntityWithCount[]
 }
 
+/** タグ一覧APIレスポンス v2.2 */
+export interface TagV2ListResponse {
+    tags: (TagV2 & { _count?: { products: number; consignments: number } })[]
+}
+
 /** @deprecated v1.0 */
 export interface TagListResponse {
     tags: (Tag & { _count?: { products: number } })[]
@@ -186,13 +214,14 @@ export type ProductSortField =
 /** 商品ソート順 */
 export type ProductSortOrder = 'asc' | 'desc'
 
-/** 商品検索フィルター v2.1 */
+/** 商品検索フィルター v2.2 */
 export interface ProductFilters {
     search?: string
     categoryId?: string
     manufacturerId?: string
     locationId?: string
     arrivalDate?: string
+    tagIds?: string[]      // v2.2追加: タグIDの配列（OR条件）
     includeSold?: boolean  // v2.1追加: 販売済みを含むかどうか（デフォルト: false）
     page?: number
     limit?: number
@@ -335,7 +364,7 @@ export interface ConsignmentMaterial {
     order: number
 }
 
-/** 委託品詳細型（リレーション含む）v2.1 */
+/** 委託品詳細型（リレーション含む）v2.2 */
 export interface ConsignmentWithRelations extends Consignment {
     manufacturer: Pick<Manufacturer, 'id' | 'name'> | null
     category: Pick<Category, 'id' | 'name'> | null
@@ -343,6 +372,7 @@ export interface ConsignmentWithRelations extends Consignment {
     unit: Pick<Unit, 'id' | 'name'> | null
     images?: ConsignmentImage[]
     materials?: ConsignmentMaterial[]
+    tags?: ConsignmentTagRelation[]  // v2.2追加
     totalCost?: string
 }
 
@@ -368,13 +398,14 @@ export type ConsignmentSortField =
 /** 委託品ソート順 v2.1 */
 export type ConsignmentSortOrder = 'asc' | 'desc'
 
-/** 委託品検索フィルター v2.1 */
+/** 委託品検索フィルター v2.2 */
 export interface ConsignmentFilters {
     search?: string
     categoryId?: string
     manufacturerId?: string
     locationId?: string
     arrivalDate?: string
+    tagIds?: string[]      // v2.2追加: タグIDの配列（OR条件）
     includeSold?: boolean
     page?: number
     limit?: number

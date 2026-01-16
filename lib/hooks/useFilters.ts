@@ -1,14 +1,15 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import type { Category, Manufacturer, Location, Unit } from '@/lib/types'
+import type { Category, Manufacturer, Location, Unit, TagV2 } from '@/lib/types'
 
-/** フィルターデータの状態 v2.0 */
+/** フィルターデータの状態 v2.2 */
 interface FiltersData {
     categories: Category[]
     manufacturers: Manufacturer[]
     locations: Location[]
     units: Unit[]
+    tags: TagV2[]
 }
 
 /** フィルターフックの戻り値 v2.0 */
@@ -27,6 +28,7 @@ export function useFilters(): UseFiltersResult {
     const [manufacturers, setManufacturers] = useState<Manufacturer[]>([])
     const [locations, setLocations] = useState<Location[]>([])
     const [units, setUnits] = useState<Unit[]>([])
+    const [tags, setTags] = useState<TagV2[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -35,11 +37,12 @@ export function useFilters(): UseFiltersResult {
             setLoading(true)
             setError(null)
 
-            const [categoriesRes, manufacturersRes, locationsRes, unitsRes] = await Promise.all([
+            const [categoriesRes, manufacturersRes, locationsRes, unitsRes, tagsRes] = await Promise.all([
                 fetch('/api/categories'),
                 fetch('/api/manufacturers'),
                 fetch('/api/locations'),
                 fetch('/api/units'),
+                fetch('/api/tags'),
             ])
 
             if (categoriesRes.ok) {
@@ -62,8 +65,13 @@ export function useFilters(): UseFiltersResult {
                 setUnits(data.units)
             }
 
+            if (tagsRes.ok) {
+                const data = await tagsRes.json()
+                setTags(data.tags)
+            }
+
             // いずれかのリクエストが失敗した場合
-            if (!categoriesRes.ok || !manufacturersRes.ok || !locationsRes.ok || !unitsRes.ok) {
+            if (!categoriesRes.ok || !manufacturersRes.ok || !locationsRes.ok || !unitsRes.ok || !tagsRes.ok) {
                 console.warn('一部のフィルタデータの取得に失敗しました')
             }
         } catch (err) {
@@ -83,6 +91,7 @@ export function useFilters(): UseFiltersResult {
         manufacturers,
         locations,
         units,
+        tags,
         loading,
         error,
         refetch: fetchFilters,
