@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -34,6 +35,8 @@ import { formatPrice } from '@/lib/utils'
 import { DEFAULT_PAGE_SIZE, CONSIGNMENT_SELECTION_STORAGE_KEY, CONSIGNMENT_PRINT_SELECTION_STORAGE_KEY } from '@/lib/constants'
 import type { ConsignmentWithRelations, PaginationData, ConsignmentSortField, ConsignmentSortOrder } from '@/lib/types'
 import { LayoutGrid, List, Download, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Search, X, Printer, Eye, Trash2, Upload, MoreHorizontal } from 'lucide-react'
+import { BulkActionsBar } from '@/components/consignments/BulkActionsBar'
+import { BulkEditDialog } from '@/components/consignments/BulkEditDialog'
 
 // ソートフィールドの型
 type SortField = Exclude<ConsignmentSortField, 'createdAt'>
@@ -53,6 +56,7 @@ export default function ConsignmentsPage() {
   // 選択状態管理
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [selectAllLoading, setSelectAllLoading] = useState(false)
+  const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkOperationLoading, setBulkOperationLoading] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -73,6 +77,7 @@ export default function ConsignmentsPage() {
   const categoryId = searchParams.get('categoryId') || ''
   const manufacturerId = searchParams.get('manufacturerId') || ''
   const locationId = searchParams.get('locationId') || ''
+  const tagIds = searchParams.get('tagIds')?.split(',').filter(Boolean) || []
   const includeSold = searchParams.get('includeSold') === 'true'
   const sortBy = (searchParams.get('sortBy') || '') as SortField | ''
   const sortOrder = (searchParams.get('sortOrder') || '') as SortOrder | ''
@@ -90,10 +95,10 @@ export default function ConsignmentsPage() {
   const [searchInput, setSearchInput] = useState(search)
 
   // 選択肢用のデータ
-  const { categories, manufacturers, locations } = useFilters()
+  const { categories, manufacturers, locations, tags } = useFilters()
 
   // フィルターがアクティブかどうか
-  const hasActiveFilters = !!(search || categoryId || manufacturerId || locationId || sortBy || includeSold)
+  const hasActiveFilters = !!(search || categoryId || manufacturerId || locationId || tagIds.length > 0 || sortBy || includeSold)
 
   // URL更新関数
   const updateFilter = useCallback((key: string, value: string) => {
@@ -157,6 +162,7 @@ export default function ConsignmentsPage() {
       if (categoryId) params.append('categoryId', categoryId)
       if (manufacturerId) params.append('manufacturerId', manufacturerId)
       if (locationId) params.append('locationId', locationId)
+      if (tagIds.length > 0) params.append('tagIds', tagIds.join(','))
       if (includeSold) params.append('includeSold', 'true')
       if (sortBy) params.append('sortBy', sortBy)
       if (sortOrder) params.append('sortOrder', sortOrder)
@@ -176,7 +182,7 @@ export default function ConsignmentsPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, categoryId, manufacturerId, locationId, includeSold, sortBy, sortOrder])
+  }, [search, categoryId, manufacturerId, locationId, tagIds, includeSold, sortBy, sortOrder])
 
   useEffect(() => {
     fetchConsignments(currentPage)
@@ -240,6 +246,7 @@ export default function ConsignmentsPage() {
       if (categoryId) params.append('categoryId', categoryId)
       if (manufacturerId) params.append('manufacturerId', manufacturerId)
       if (locationId) params.append('locationId', locationId)
+      if (tagIds.length > 0) params.append('tagIds', tagIds.join(','))
       if (includeSold) params.append('includeSold', 'true')
       if (sortBy) params.append('sortBy', sortBy)
       if (sortOrder) params.append('sortOrder', sortOrder)
@@ -259,6 +266,49 @@ export default function ConsignmentsPage() {
   const clearSelection = () => {
     setSelectedIds(new Set())
     sessionStorage.removeItem(CONSIGNMENT_SELECTION_STORAGE_KEY)
+  }
+
+  // 一括編集
+  const handleBulkEdit = async (updates: {
+    locationId?: string
+    manufacturerId?: string
+    categoryId?: string
+    tagIds?: string[]
+    quantity?: {
+      mode: 'set' | 'increment'
+      value: number
+    }
+  }) => {
+    if (selectedIds.size === 0) return
+
+    try {
+      setBulkOperationLoading(true)
+      const response = await fetch('/api/consignments/bulk/edit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          consignmentIds: Array.from(selectedIds),
+          updates,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || '一括編集に失敗しました')
+      }
+
+      const data = await response.json()
+      alert(data.message)
+      setSelectedIds(new Set())
+      setBulkEditOpen(false)
+      fetchConsignments(currentPage)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '一括編集に失敗しました')
+    } finally {
+      setBulkOperationLoading(false)
+    }
   }
 
   // 一括削除
@@ -357,6 +407,7 @@ export default function ConsignmentsPage() {
     if (categoryId) params.append('categoryId', categoryId)
     if (manufacturerId) params.append('manufacturerId', manufacturerId)
     if (locationId) params.append('locationId', locationId)
+    if (tagIds.length > 0) params.append('tagIds', tagIds.join(','))
     if (includeSold) params.append('includeSold', 'true')
 
     window.location.href = `/api/consignments/export?${params.toString()}`
@@ -436,7 +487,7 @@ export default function ConsignmentsPage() {
       <div className="rounded-lg border bg-white/70 p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold">委託品一覧</h1>
+            {/* Title removed */}
             <p className="text-xs text-gray-500">
               {pagination.total}件
               {hasSelection && ` (${selectedIds.size}件選択中)`}
@@ -534,6 +585,29 @@ export default function ConsignmentsPage() {
                         <option key={l.id} value={l.id}>{l.name}</option>
                       ))}
                     </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">タグ</label>
+                    <div className="mt-1 space-y-1 max-h-32 overflow-y-auto border rounded p-2">
+                      {tags.length === 0 ? (
+                        <p className="text-xs text-gray-400">タグがありません</p>
+                      ) : (
+                        tags.map((tag) => (
+                          <label key={tag.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                            <Checkbox
+                              checked={tagIds.includes(tag.id)}
+                              onCheckedChange={(checked) => {
+                                const newTagIds = checked
+                                  ? [...tagIds, tag.id]
+                                  : tagIds.filter((id) => id !== tag.id)
+                                updateFilter('tagIds', newTagIds.join(','))
+                              }}
+                            />
+                            {tag.name}
+                          </label>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
               </PopoverContent>
@@ -650,6 +724,14 @@ export default function ConsignmentsPage() {
         </div>
       </div>
 
+      {/* 一括操作ツールバー */}
+      <BulkActionsBar
+        selectedCount={selectedIds.size}
+        onClearSelection={clearSelection}
+        onBulkDelete={() => setBulkDeleteOpen(true)}
+        onBulkEdit={() => setBulkEditOpen(true)}
+      />
+
       <input
         ref={importInputRef}
         type="file"
@@ -752,6 +834,7 @@ export default function ConsignmentsPage() {
                 <TableHead className="cursor-pointer" onClick={() => toggleSort('location')}>
                   場所 {getSortIcon('location')}
                 </TableHead>
+                <TableHead>タグ</TableHead>
                 {hasSelection && <TableHead className="w-10">詳細</TableHead>}
               </TableRow>
             </TableHeader>
@@ -778,6 +861,19 @@ export default function ConsignmentsPage() {
                     {consignment.listPrice ? formatPrice(consignment.listPrice.toString()) : '-'}
                   </TableCell>
                   <TableCell className="max-w-[100px] truncate">{consignment.location?.name || '-'}</TableCell>
+                  <TableCell className="max-w-[150px]">
+                    <div className="flex flex-wrap gap-1">
+                      {consignment.tags && consignment.tags.length > 0 ? (
+                        consignment.tags.map((t) => (
+                          <Badge key={t.id} variant="secondary" className="text-[10px] px-1.5 py-0">
+                            {t.tag?.name || ''}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </div>
+                  </TableCell>
                   {hasSelection && (
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Button
@@ -799,6 +895,19 @@ export default function ConsignmentsPage() {
 
       {/* ページネーション */}
       {renderPagination()}
+
+      {/* 一括編集ダイアログ */}
+      <BulkEditDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        selectedCount={selectedIds.size}
+        categories={categories}
+        manufacturers={manufacturers}
+        locations={locations}
+        tags={tags}
+        onSubmit={handleBulkEdit}
+        isLoading={bulkOperationLoading}
+      />
 
       {/* 一括削除確認ダイアログ */}
       <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>

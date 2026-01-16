@@ -28,6 +28,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Badge } from '@/components/ui/badge'
 import { useFilters } from '@/lib/hooks/useFilters'
 import { formatPrice } from '@/lib/utils'
 import { DEFAULT_PAGE_SIZE, PRINT_SELECTION_STORAGE_KEY, PRODUCT_SELECTION_STORAGE_KEY } from '@/lib/constants'
@@ -92,8 +93,8 @@ export default function ProductsPage() {
   // searchInputはデバウンス用に維持
   const [searchInput, setSearchInput] = useState(search)
 
-  // 選択肢用のデータ（v2.0カスタムフックを使用）
-  const { categories, manufacturers, locations } = useFilters()
+  // 選択肢用のデータ（v2.2カスタムフックを使用）
+  const { categories, manufacturers, locations, tags } = useFilters()
 
   // フィルターがアクティブかどうか
   const hasActiveFilters = !!(search || categoryId || manufacturerId || locationId || sortBy || includeSold)
@@ -514,9 +515,6 @@ export default function ProductsPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">商品一覧</h1>
-        </div>
         <div className="text-red-600">{error}</div>
       </div>
     )
@@ -528,7 +526,7 @@ export default function ProductsPage() {
       <div className="rounded-lg border bg-white/70 p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1">
-            <h1 className="text-xl font-bold whitespace-nowrap">商品一覧</h1>
+            {/* Title removed for breadcrumb */}
             <p className="text-xs text-gray-500">{pagination.total}件</p>
           </div>
 
@@ -822,6 +820,10 @@ export default function ProductsPage() {
                         />
                       </div>
                     </TableHead>
+                    {/* v2.2追加: タグ列 */}
+                    <TableHead className="py-1.5 px-2">
+                      <span className="text-xs font-medium">タグ</span>
+                    </TableHead>
                     {/* v2.1追加: 選択モード時の詳細ボタン列 */}
                     {hasSelection && (
                       <TableHead className="w-12 py-1.5 px-2">
@@ -833,7 +835,7 @@ export default function ProductsPage() {
                 <TableBody>
                   {products.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={hasSelection ? 10 : 9} className="text-xs py-4 px-2 text-center text-gray-500">
+                      <TableCell colSpan={hasSelection ? 11 : 10} className="text-xs py-4 px-2 text-center text-gray-500">
                         商品が登録されていません
                       </TableCell>
                     </TableRow>
@@ -882,6 +884,20 @@ export default function ProductsPage() {
                             {formatPrice(product.costPrice as string)}
                           </TableCell>
                           <TableCell className="text-xs py-1 px-2">{product.location?.name || '-'}</TableCell>
+                          {/* v2.2追加: タグ列 */}
+                          <TableCell className="text-xs py-1 px-2">
+                            <div className="flex flex-wrap gap-1">
+                              {product.tags && product.tags.length > 0 ? (
+                                product.tags.map((productTag) => (
+                                  <Badge key={productTag.id} variant="secondary" className="text-[10px] px-1.5 py-0">
+                                    {productTag.tag?.name}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </div>
+                          </TableCell>
                           {/* v2.1追加: 選択モード時の詳細ボタン */}
                           {hasSelection && (
                             <TableCell className="py-1 px-2">
@@ -952,6 +968,7 @@ export default function ProductsPage() {
         categories={categories}
         manufacturers={manufacturers}
         locations={locations}
+        tags={tags}
         onSubmit={handleBulkEdit}
         isLoading={bulkOperationLoading}
       />

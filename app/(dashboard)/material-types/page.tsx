@@ -167,7 +167,7 @@ export default function MaterialTypesPage() {
   if (error) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">素材項目管理</h1>
+        {/* Title removed */}
         <div className="text-red-600">{error}</div>
       </div>
     )
@@ -175,7 +175,7 @@ export default function MaterialTypesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">素材項目管理</h1>
+      {/* Title removed */}
 
       <Card>
         <CardHeader>

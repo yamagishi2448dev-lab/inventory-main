@@ -78,7 +78,7 @@ export default function ManufacturersPage() {
     if (error) {
         return (
             <div className="space-y-6">
-                <h1 className="text-3xl font-bold">メーカー管理</h1>
+                {/* Title removed */}
                 <div className="text-red-600">{error}</div>
             </div>
         )
@@ -86,7 +86,7 @@ export default function ManufacturersPage() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold">メーカー管理</h1>
+            {/* Title removed */}
 
             <Card>
                 <CardHeader>

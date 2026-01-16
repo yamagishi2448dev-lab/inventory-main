@@ -60,9 +60,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">ダッシュボード</h1>
-        </div>
+        {/* Title removed */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-32" />
@@ -82,18 +80,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">ダッシュボード</h1>
-      </div>
+      {/* Title removed */}
 
       {/* 統計カード v2.1 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat) => (
           <Card
             key={stat.title}
-            className={`card-shadow hover:card-shadow-hover hover:-translate-y-1 transition-all duration-200 ${
-              stat.highlight ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200' : ''
-            }`}
+            className={`card-shadow hover:card-shadow-hover hover:-translate-y-1 transition-all duration-200 ${stat.highlight ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200' : ''
+              }`}
           >
             <CardHeader>
               <CardTitle className="text-sm font-medium text-gray-600">
