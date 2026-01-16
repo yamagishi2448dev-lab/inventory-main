@@ -109,7 +109,7 @@ export default function LoginPage() {
       </CardContent>
       <CardFooter className="flex justify-center pb-8 pt-2">
         <p className="text-xs text-slate-400 text-center">
-          &copy; 2024 Inventory System. All rights reserved.
+          &copy; 2026 YAMAGISHI.Inc. All rights reserved.
         </p>
       </CardFooter>
     </Card>
