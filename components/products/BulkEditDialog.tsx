@@ -24,7 +24,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Category, Manufacturer, Location, QuantityMode } from '@/lib/types'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Category, Manufacturer, Location, QuantityMode, TagV2 } from '@/lib/types'
 
 interface BulkEditDialogProps {
     open: boolean
@@ -33,10 +34,12 @@ interface BulkEditDialogProps {
     categories: Category[]
     manufacturers: Manufacturer[]
     locations: Location[]
+    tags: TagV2[]  // v2.2追加
     onSubmit: (updates: {
         locationId?: string
         manufacturerId?: string
         categoryId?: string
+        tagIds?: string[]  // v2.2追加
         quantity?: {
             mode: QuantityMode
             value: number
@@ -55,6 +58,7 @@ export function BulkEditDialog({
     categories,
     manufacturers,
     locations,
+    tags,  // v2.2追加
     onSubmit,
     isLoading = false,
 }: BulkEditDialogProps) {
@@ -63,12 +67,15 @@ export function BulkEditDialog({
     const [categoryId, setCategoryId] = useState<string>(NO_CHANGE_VALUE)
     const [quantityMode, setQuantityMode] = useState<QuantityMode>('set')
     const [quantityValue, setQuantityValue] = useState<string>('')
+    const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])  // v2.2追加
+    const [tagChangeMode, setTagChangeMode] = useState<boolean>(false)  // v2.2追加: タグ変更モード
 
     const handleSubmit = () => {
         const updates: {
             locationId?: string
             manufacturerId?: string
             categoryId?: string
+            tagIds?: string[]  // v2.2追加
             quantity?: {
                 mode: QuantityMode
                 value: number
@@ -83,6 +90,10 @@ export function BulkEditDialog({
         }
         if (categoryId && categoryId !== NO_CHANGE_VALUE) {
             updates.categoryId = categoryId
+        }
+        // v2.2追加: タグ変更モードが有効な場合のみtagIdsを含める
+        if (tagChangeMode) {
+            updates.tagIds = selectedTagIds
         }
         if (quantityValue) {
             const value = parseInt(quantityValue, 10)
@@ -109,6 +120,8 @@ export function BulkEditDialog({
         setCategoryId(NO_CHANGE_VALUE)
         setQuantityMode('set')
         setQuantityValue('')
+        setSelectedTagIds([])  // v2.2追加
+        setTagChangeMode(false)  // v2.2追加
         onOpenChange(false)
     }
 
@@ -209,6 +222,51 @@ export function BulkEditDialog({
                                 ? '全ての商品を同じ個数に設定します'
                                 : '現在の個数に加算/減算します（負の数で減算）'}
                         </p>
+                    </div>
+
+                    {/* タグ v2.2追加 */}
+                    <div className="grid gap-2">
+                        <div className="flex items-center gap-2">
+                            <Checkbox
+                                id="tag-change-mode"
+                                checked={tagChangeMode}
+                                onCheckedChange={(checked) => {
+                                    setTagChangeMode(checked as boolean)
+                                    if (!checked) setSelectedTagIds([])
+                                }}
+                            />
+                            <Label htmlFor="tag-change-mode">タグを変更</Label>
+                        </div>
+                        {tagChangeMode && (
+                            <div className="border rounded-md p-3 max-h-32 overflow-y-auto">
+                                {tags.length === 0 ? (
+                                    <p className="text-sm text-gray-400">タグがありません</p>
+                                ) : (
+                                    <div className="flex flex-wrap gap-3">
+                                        {tags.map((tag) => (
+                                            <label key={tag.id} className="flex items-center gap-2 cursor-pointer">
+                                                <Checkbox
+                                                    checked={selectedTagIds.includes(tag.id)}
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) {
+                                                            setSelectedTagIds([...selectedTagIds, tag.id])
+                                                        } else {
+                                                            setSelectedTagIds(selectedTagIds.filter((id) => id !== tag.id))
+                                                        }
+                                                    }}
+                                                />
+                                                <span className="text-sm">{tag.name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {tagChangeMode && (
+                            <p className="text-xs text-muted-foreground">
+                                選択したタグが全ての商品に設定されます（既存のタグは上書きされます）
+                            </p>
+                        )}
                     </div>
                 </div>
 
