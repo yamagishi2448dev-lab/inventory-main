@@ -77,6 +77,7 @@ export default function ProductsPage() {
   const categoryId = searchParams.get('categoryId') || ''
   const manufacturerId = searchParams.get('manufacturerId') || ''
   const locationId = searchParams.get('locationId') || ''
+  const tagIds = searchParams.get('tagIds')?.split(',').filter(Boolean) || []  // v2.2追加
   const includeSold = searchParams.get('includeSold') === 'true'  // v2.1追加
   const sortBy = (searchParams.get('sortBy') || '') as SortField | ''
   const sortOrder = (searchParams.get('sortOrder') || '') as SortOrder | ''
@@ -97,7 +98,7 @@ export default function ProductsPage() {
   const { categories, manufacturers, locations, tags } = useFilters()
 
   // フィルターがアクティブかどうか
-  const hasActiveFilters = !!(search || categoryId || manufacturerId || locationId || sortBy || includeSold)
+  const hasActiveFilters = !!(search || categoryId || manufacturerId || locationId || tagIds.length > 0 || sortBy || includeSold)
 
   // URL更新関数
   const updateFilter = useCallback((key: string, value: string) => {
@@ -165,6 +166,7 @@ export default function ProductsPage() {
       if (categoryId) params.append('categoryId', categoryId)
       if (manufacturerId) params.append('manufacturerId', manufacturerId)
       if (locationId) params.append('locationId', locationId)
+      if (tagIds.length > 0) params.append('tagIds', tagIds.join(','))  // v2.2追加
       if (includeSold) params.append('includeSold', 'true')  // v2.1追加
       if (sortBy) params.append('sortBy', sortBy)
       if (sortOrder) params.append('sortOrder', sortOrder)
@@ -184,7 +186,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, categoryId, manufacturerId, locationId, includeSold, sortBy, sortOrder])
+  }, [search, categoryId, manufacturerId, locationId, tagIds, includeSold, sortBy, sortOrder])
 
   useEffect(() => {
     fetchProducts(currentPage)
@@ -459,7 +461,7 @@ export default function ProductsPage() {
     </div>
   )
 
-  // フィルタードロップダウンコンポーネント
+  // フィルタードロップダウンコンポーネント（検索機能付き）
   const FilterDropdown = ({
     field,
     options,
@@ -472,9 +474,17 @@ export default function ProductsPage() {
     label: string
   }) => {
     const [open, setOpen] = useState(false)
+    const [filterSearch, setFilterSearch] = useState('')
+
+    const filteredOptions = options.filter((option) =>
+      option.name.toLowerCase().includes(filterSearch.toLowerCase())
+    )
 
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen)
+        if (!isOpen) setFilterSearch('')
+      }}>
         <PopoverTrigger asChild>
           <button
             className={`p-0.5 rounded hover:bg-gray-200 ${currentValue ? 'text-blue-600' : 'text-gray-400'}`}
@@ -484,28 +494,110 @@ export default function ProductsPage() {
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-48 p-2" align="start">
-          <div className="space-y-1 max-h-60 overflow-y-auto">
-            <button
-              onClick={() => {
-                updateFilter(field, '')
-                setOpen(false)
-              }}
-              className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${!currentValue ? 'bg-blue-50 text-blue-600' : ''}`}
-            >
-              すべて
-            </button>
-            {options.map((option) => (
+          <div className="space-y-2">
+            <Input
+              placeholder={`${label}を検索...`}
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              className="h-7 text-xs"
+            />
+            <div className="space-y-1 max-h-48 overflow-y-auto">
               <button
-                key={option.id}
                 onClick={() => {
-                  updateFilter(field, option.id)
+                  updateFilter(field, '')
                   setOpen(false)
                 }}
-                className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${currentValue === option.id ? 'bg-blue-50 text-blue-600' : ''}`}
+                className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${!currentValue ? 'bg-blue-50 text-blue-600' : ''}`}
               >
-                {option.name}
+                すべて
               </button>
-            ))}
+              {filteredOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => {
+                    updateFilter(field, option.id)
+                    setOpen(false)
+                  }}
+                  className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${currentValue === option.id ? 'bg-blue-50 text-blue-600' : ''}`}
+                >
+                  {option.name}
+                </button>
+              ))}
+              {filteredOptions.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-2">該当なし</p>
+              )}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    )
+  }
+
+  // タグフィルタードロップダウンコンポーネント（複数選択・検索機能付き）
+  const TagFilterDropdown = () => {
+    const [open, setOpen] = useState(false)
+    const [filterSearch, setFilterSearch] = useState('')
+
+    const filteredTags = tags.filter((tag) =>
+      tag.name.toLowerCase().includes(filterSearch.toLowerCase())
+    )
+
+    const toggleTag = (tagId: string) => {
+      const newTagIds = tagIds.includes(tagId)
+        ? tagIds.filter((id) => id !== tagId)
+        : [...tagIds, tagId]
+      updateFilter('tagIds', newTagIds.join(','))
+    }
+
+    const clearTags = () => {
+      updateFilter('tagIds', '')
+      setOpen(false)
+    }
+
+    return (
+      <Popover open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen)
+        if (!isOpen) setFilterSearch('')
+      }}>
+        <PopoverTrigger asChild>
+          <button
+            className={`p-0.5 rounded hover:bg-gray-200 ${tagIds.length > 0 ? 'text-blue-600' : 'text-gray-400'}`}
+            title="タグでフィルター"
+          >
+            <Filter className="h-3 w-3" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-2" align="start">
+          <div className="space-y-2">
+            <Input
+              placeholder="タグを検索..."
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              className="h-7 text-xs"
+            />
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              <button
+                onClick={clearTags}
+                className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${tagIds.length === 0 ? 'bg-blue-50 text-blue-600' : ''}`}
+              >
+                すべて
+              </button>
+              {filteredTags.map((tag) => (
+                <label
+                  key={tag.id}
+                  className="flex items-center gap-2 px-2 py-1 text-xs rounded hover:bg-gray-100 cursor-pointer"
+                >
+                  <Checkbox
+                    checked={tagIds.includes(tag.id)}
+                    onCheckedChange={() => toggleTag(tag.id)}
+                  />
+                  {tag.name}
+                </label>
+              ))}
+              {filteredTags.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-2">該当なし</p>
+              )}
+            </div>
           </div>
         </PopoverContent>
       </Popover>
@@ -536,7 +628,7 @@ export default function ProductsPage() {
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="商品名、SKU、仕様で検索..."
+                placeholder="商品名、仕様で検索..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-8 w-full h-8 text-xs"
@@ -822,7 +914,10 @@ export default function ProductsPage() {
                     </TableHead>
                     {/* v2.2追加: タグ列 */}
                     <TableHead className="py-1.5 px-2">
-                      <span className="text-xs font-medium">タグ</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-medium">タグ</span>
+                        <TagFilterDropdown />
+                      </div>
                     </TableHead>
                     {/* v2.1追加: 選択モード時の詳細ボタン列 */}
                     {hasSelection && (

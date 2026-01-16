@@ -42,6 +42,7 @@ interface Product {
   soldAt: string | null  // v2.1追加
   images: { id: string; url: string; order: number }[]
   materials?: ProductMaterial[]  // v2.1追加
+  tags?: { id: string; tag: { id: string; name: string } }[]  // v2.2追加
   totalCost: string
   createdAt: string
   updatedAt: string
@@ -307,6 +308,20 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <div>
               <div className="text-sm text-gray-500">入荷年月</div>
               <div className="font-medium">{product.arrivalDate || '未設定'}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-500">タグ</div>
+              <div className="font-medium flex flex-wrap gap-1 mt-1">
+                {product.tags && product.tags.length > 0 ? (
+                  product.tags.map((productTag) => (
+                    <Badge key={productTag.id} variant="secondary">
+                      {productTag.tag?.name}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-gray-400">未設定</span>
+                )}
+              </div>
             </div>
           </div>
 

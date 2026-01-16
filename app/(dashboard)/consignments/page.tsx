@@ -430,6 +430,99 @@ export default function ConsignmentsPage() {
   const pageIds = consignments.map((c) => c.id)
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id))
 
+  // フィルターセクションコンポーネント（検索機能付き）
+  const FilterSection = ({
+    label,
+    options,
+    currentValue,
+    onSelect,
+  }: {
+    label: string
+    options: { id: string; name: string }[]
+    currentValue: string
+    onSelect: (value: string) => void
+  }) => {
+    const [filterSearch, setFilterSearch] = useState('')
+    const filteredOptions = options.filter((option) =>
+      option.name.toLowerCase().includes(filterSearch.toLowerCase())
+    )
+
+    return (
+      <div>
+        <label className="text-sm font-medium">{label}</label>
+        <Input
+          placeholder={`${label}を検索...`}
+          value={filterSearch}
+          onChange={(e) => setFilterSearch(e.target.value)}
+          className="mt-1 h-7 text-xs"
+        />
+        <div className="mt-1 space-y-1 max-h-24 overflow-y-auto border rounded p-2">
+          <button
+            onClick={() => onSelect('')}
+            className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${!currentValue ? 'bg-blue-50 text-blue-600' : ''}`}
+          >
+            すべて
+          </button>
+          {filteredOptions.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => onSelect(option.id)}
+              className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${currentValue === option.id ? 'bg-blue-50 text-blue-600' : ''}`}
+            >
+              {option.name}
+            </button>
+          ))}
+          {filteredOptions.length === 0 && (
+            <p className="text-xs text-gray-400 text-center py-1">該当なし</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // タグフィルターセクションコンポーネント（検索機能付き）
+  const TagFilterSection = ({
+    tags: tagOptions,
+    selectedTagIds,
+    onTagToggle,
+  }: {
+    tags: { id: string; name: string }[]
+    selectedTagIds: string[]
+    onTagToggle: (tagId: string) => void
+  }) => {
+    const [filterSearch, setFilterSearch] = useState('')
+    const filteredTags = tagOptions.filter((tag) =>
+      tag.name.toLowerCase().includes(filterSearch.toLowerCase())
+    )
+
+    return (
+      <div>
+        <label className="text-sm font-medium">タグ</label>
+        <Input
+          placeholder="タグを検索..."
+          value={filterSearch}
+          onChange={(e) => setFilterSearch(e.target.value)}
+          className="mt-1 h-7 text-xs"
+        />
+        <div className="mt-1 space-y-1 max-h-24 overflow-y-auto border rounded p-2">
+          {filteredTags.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-1">該当なし</p>
+          ) : (
+            filteredTags.map((tag) => (
+              <label key={tag.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-100 px-2 py-1 rounded">
+                <Checkbox
+                  checked={selectedTagIds.includes(tag.id)}
+                  onCheckedChange={() => onTagToggle(tag.id)}
+                />
+                {tag.name}
+              </label>
+            ))
+          )}
+        </div>
+      </div>
+    )
+  }
+
   // ページネーションコントロール
   const renderPagination = () => {
     if (pagination.totalPages <= 1) return null
@@ -498,7 +591,7 @@ export default function ConsignmentsPage() {
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="商品名・SKUで検索..."
+                placeholder="商品名、仕様で検索..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-10 h-8 text-xs"
@@ -547,68 +640,34 @@ export default function ConsignmentsPage() {
               </PopoverTrigger>
               <PopoverContent className="w-72" align="end">
                 <div className="space-y-3">
-                  <div>
-                    <label className="text-sm font-medium">メーカー</label>
-                    <select
-                      className="w-full mt-1 border rounded px-2 py-1 text-sm"
-                      value={manufacturerId}
-                      onChange={(e) => updateFilter('manufacturerId', e.target.value)}
-                    >
-                      <option value="">すべて</option>
-                      {manufacturers.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">品目</label>
-                    <select
-                      className="w-full mt-1 border rounded px-2 py-1 text-sm"
-                      value={categoryId}
-                      onChange={(e) => updateFilter('categoryId', e.target.value)}
-                    >
-                      <option value="">すべて</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">場所</label>
-                    <select
-                      className="w-full mt-1 border rounded px-2 py-1 text-sm"
-                      value={locationId}
-                      onChange={(e) => updateFilter('locationId', e.target.value)}
-                    >
-                      <option value="">すべて</option>
-                      {locations.map((l) => (
-                        <option key={l.id} value={l.id}>{l.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">タグ</label>
-                    <div className="mt-1 space-y-1 max-h-32 overflow-y-auto border rounded p-2">
-                      {tags.length === 0 ? (
-                        <p className="text-xs text-gray-400">タグがありません</p>
-                      ) : (
-                        tags.map((tag) => (
-                          <label key={tag.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                            <Checkbox
-                              checked={tagIds.includes(tag.id)}
-                              onCheckedChange={(checked) => {
-                                const newTagIds = checked
-                                  ? [...tagIds, tag.id]
-                                  : tagIds.filter((id) => id !== tag.id)
-                                updateFilter('tagIds', newTagIds.join(','))
-                              }}
-                            />
-                            {tag.name}
-                          </label>
-                        ))
-                      )}
-                    </div>
-                  </div>
+                  <FilterSection
+                    label="メーカー"
+                    options={manufacturers}
+                    currentValue={manufacturerId}
+                    onSelect={(value) => updateFilter('manufacturerId', value)}
+                  />
+                  <FilterSection
+                    label="品目"
+                    options={categories}
+                    currentValue={categoryId}
+                    onSelect={(value) => updateFilter('categoryId', value)}
+                  />
+                  <FilterSection
+                    label="場所"
+                    options={locations}
+                    currentValue={locationId}
+                    onSelect={(value) => updateFilter('locationId', value)}
+                  />
+                  <TagFilterSection
+                    tags={tags}
+                    selectedTagIds={tagIds}
+                    onTagToggle={(tagId) => {
+                      const newTagIds = tagIds.includes(tagId)
+                        ? tagIds.filter((id) => id !== tagId)
+                        : [...tagIds, tagId]
+                      updateFilter('tagIds', newTagIds.join(','))
+                    }}
+                  />
                 </div>
               </PopoverContent>
             </Popover>

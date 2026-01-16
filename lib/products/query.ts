@@ -42,7 +42,6 @@ export function buildProductWhereClause(
   if (filters.search) {
     where.OR = [
       { name: { contains: filters.search } },
-      { sku: { contains: filters.search } },
       { specification: { contains: filters.search } },
     ]
   }
