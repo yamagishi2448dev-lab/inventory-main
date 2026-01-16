@@ -1312,6 +1312,101 @@ Phase 1から順番に実装していきます。
 
 ---
 
+## Phase 2.2: タグ機能実装（v2.2） ✅
+
+### 概要
+商品と委託品の両方に対して、新しいタグ機能を追加します。
+- 各商品/委託品に複数のタグを付与可能（多対多関係）
+- タグでフィルタリング・ソート可能
+- 複数タグ選択時はOR条件（いずれかのタグを持つ商品を表示）
+- 初期タグ: 「玉家建設用」
+- Location（場所）とは別の独立した機能として実装
+
+### 2.2-1 データモデル追加
+- [x] Prismaスキーマにタグモデル追加
+  - Tag: id, name, createdAt, updatedAt
+  - ProductTag: 商品-タグ中間テーブル（多対多）
+  - ConsignmentTag: 委託品-タグ中間テーブル（多対多）
+- [x] マイグレーション実行
+  - `npx prisma migrate dev --name add_tag_feature`
+  - マイグレーションID: 20260115080747
+
+### 2.2-2 タグAPI実装
+- [x] `app/api/tags/route.ts`を作成
+  - GET: タグ一覧取得（商品数・委託品数を含む）
+  - POST: タグ新規作成
+- [x] `app/api/tags/[id]/route.ts`を作成
+  - GET: タグ詳細取得
+  - PUT: タグ更新
+  - DELETE: タグ削除
+- [x] `lib/validations/tag.ts`にタグバリデーション追加
+  - 名前: 必須、最大50文字、一意
+
+### 2.2-3 商品・委託品APIの拡張
+- [x] `app/api/products/route.ts`を更新
+  - GET: `tagIds`パラメータでフィルタリング対応（OR条件）
+  - POST: `tagIds`配列でタグ関連付け
+  - レスポンスにタグ情報を含める
+- [x] `app/api/products/[id]/route.ts`を更新
+  - PUT: タグの更新（既存削除→新規追加）
+- [x] `app/api/consignments/route.ts`を更新
+  - 商品APIと同様のタグ対応
+- [x] `app/api/consignments/[id]/route.ts`を更新
+  - 商品APIと同様のタグ対応
+- [x] `lib/products/query.ts`にタグフィルター追加
+  - `buildProductWhereClause()`にタグOR条件を実装
+- [x] `lib/consignments/query.ts`にタグフィルター追加
+  - `buildConsignmentWhereClause()`にタグOR条件を実装
+
+### 2.2-4 UI実装
+- [x] タグ管理画面
+  - `app/(dashboard)/tags/page.tsx`（既存）
+  - タグ一覧テーブル（名前、商品数、委託品数、作成日時）
+  - 新規作成・編集・削除機能
+- [x] サイドバー更新
+  - `components/layout/Sidebar.tsx`にタグメニュー追加（既存）
+- [x] 商品一覧にタグ機能追加
+  - `app/(dashboard)/products/page.tsx`
+  - タグフィルタードロップダウン（マルチセレクト）
+  - テーブル列にタグ表示（バッジ形式）
+- [x] 委託品一覧にタグ機能追加
+  - `app/(dashboard)/consignments/page.tsx`
+  - タグフィルタードロップダウン（マルチセレクト）
+  - テーブル列にタグ表示（バッジ形式）
+- [x] 商品フォームにタグ選択追加
+  - `app/(dashboard)/products/new/page.tsx`
+  - `app/(dashboard)/products/[id]/edit/page.tsx`
+  - チェックボックスによるマルチセレクト
+  - タグ一覧をuseFiltersフックから取得
+- [x] 委託品フォームにタグ選択追加
+  - `app/(dashboard)/consignments/new/page.tsx`
+  - `app/(dashboard)/consignments/[id]/edit/page.tsx`
+  - チェックボックスによるマルチセレクト
+  - タグ一覧をuseFiltersフックから取得
+- [x] `lib/hooks/useFilters.ts`を更新
+  - タグデータ取得を追加
+- [x] `lib/types.ts`を更新
+  - TagV2, ProductTagRelation, ConsignmentTagRelation型を追加
+  - ProductFilters, ConsignmentFiltersにtagIds追加
+
+### 2.2-5 シード更新
+- [x] `prisma/seed.ts`を更新
+  - 初期タグ「玉家建設用」を作成
+
+### 2.2-6 バリデーション更新
+- [x] `lib/validations/product.ts`を更新
+  - productSchemaV2にtagIds配列を追加
+- [x] `lib/validations/consignment.ts`を更新
+  - consignmentSchemaにtagIds配列を追加
+
+### 2.2-7 テスト
+- [ ] タグCRUD操作のテスト
+- [ ] 商品・委託品へのタグ付与テスト
+- [ ] タグフィルタリングのテスト（OR条件）
+- [ ] タグの削除時のカスケード処理確認
+
+---
+
 ## メモ・注意事項
 
 ### 開発環境
@@ -1341,5 +1436,5 @@ Phase 1から順番に実装していきます。
 
 ---
 
-**最終更新日**: 2026-01-03
+**最終更新日**: 2026-01-16
 **バージョン**: 2.2.0

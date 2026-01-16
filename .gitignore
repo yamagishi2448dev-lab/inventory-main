@@ -50,3 +50,6 @@ prisma/dev.db-journal
 # data files
 *.csv
 *.xlsx
+
+.vercel
+.env*.local

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { existsSync } from 'fs'
-import path from 'path'
 import crypto from 'crypto'
+import path from 'path'
+import {
+  uploadToGoogleDrive,
+  isGoogleDriveConfigured,
+} from '@/lib/google-drive'
 
 // 許可される画像形式
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -10,6 +12,17 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function POST(request: NextRequest) {
   try {
+    // Google Drive設定の確認
+    if (!isGoogleDriveConfigured()) {
+      return NextResponse.json(
+        {
+          error:
+            'Google Driveが設定されていません。環境変数を確認してください。',
+        },
+        { status: 500 }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
 
@@ -23,7 +36,10 @@ export async function POST(request: NextRequest) {
     // ファイル形式チェック
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: '許可されていないファイル形式です。JPEG、PNG、WebPのみアップロード可能です。' },
+        {
+          error:
+            '許可されていないファイル形式です。JPEG、PNG、WebPのみアップロード可能です。',
+        },
         { status: 400 }
       )
     }
@@ -31,7 +47,10 @@ export async function POST(request: NextRequest) {
     // ファイルサイズチェック
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: 'ファイルサイズが大きすぎます。最大5MBまでアップロード可能です。' },
+        {
+          error:
+            'ファイルサイズが大きすぎます。最大5MBまでアップロード可能です。',
+        },
         { status: 400 }
       )
     }
@@ -48,20 +67,8 @@ export async function POST(request: NextRequest) {
     const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '')
     const filename = `${timestamp}_${randomString}${ext}`
 
-    // アップロードディレクトリのパス
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-
-    // ディレクトリが存在しない場合は作成
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
-    }
-
-    // ファイルを保存
-    const filepath = path.join(uploadDir, filename)
-    await writeFile(filepath, buffer)
-
-    // 画像URLを返す
-    const url = `/uploads/${filename}`
+    // Google Driveにアップロード
+    const url = await uploadToGoogleDrive(buffer, filename, file.type)
 
     return NextResponse.json({
       success: true,

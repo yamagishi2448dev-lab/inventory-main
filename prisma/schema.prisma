@@ -65,6 +65,7 @@ model Product {
   location     Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
   images       ProductImage[]
   materials    ProductMaterial[]  // 素材情報（v2.1追加）
+  tags         ProductTag[]       // タグ（v2.2追加）
 
   @@index([manufacturerId])
   @@index([categoryId])
@@ -220,6 +221,7 @@ model Consignment {
   location     Location?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
   images       ConsignmentImage[]
   materials    ConsignmentMaterial[]
+  tags         ConsignmentTag[]       // タグ（v2.2追加）
 
   @@index([manufacturerId])
   @@index([categoryId])
@@ -260,4 +262,52 @@ model ConsignmentMaterial {
   @@index([consignmentId])
   @@index([materialTypeId])
   @@map("consignment_materials")
+}
+
+// ============================================
+// v2.2 タグ機能
+// ============================================
+
+// タグ（v2.2追加）
+model Tag {
+  id           String           @id @default(cuid())
+  name         String           @unique
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  products     ProductTag[]
+  consignments ConsignmentTag[]
+
+  @@map("tags")
+}
+
+// 商品-タグ中間テーブル（v2.2追加）
+model ProductTag {
+  id        String   @id @default(cuid())
+  productId String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, tagId])
+  @@index([productId])
+  @@index([tagId])
+  @@map("product_tags")
+}
+
+// 委託品-タグ中間テーブル（v2.2追加）
+model ConsignmentTag {
+  id            String   @id @default(cuid())
+  consignmentId String
+  tagId         String
+  createdAt     DateTime @default(now())
+
+  consignment Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([consignmentId, tagId])
+  @@index([consignmentId])
+  @@index([tagId])
+  @@map("consignment_tags")
 }

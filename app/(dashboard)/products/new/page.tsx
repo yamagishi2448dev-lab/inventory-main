@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import ImageUpload from '@/components/products/ImageUpload'
 import { useFilters } from '@/lib/hooks/useFilters'
 
@@ -17,7 +18,10 @@ export default function NewProductPage() {
   const [images, setImages] = useState<{ url: string; order: number }[]>([])
 
   // v2.0カスタムフックを使用してフィルタデータを取得
-  const { categories, manufacturers, locations, units } = useFilters()
+  const { categories, manufacturers, locations, units, tags } = useFilters()
+
+  // v2.2 タグ選択状態
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
   // v2.1フォームデータ
   const [formData, setFormData] = useState({
@@ -52,13 +56,13 @@ export default function NewProductPage() {
     setError(null)
 
     try {
-      // v2.1 ペイロード（SKUは自動採番）
+      // v2.2 ペイロード（SKUは自動採番）
       const payload = {
         name: formData.name,
         manufacturerId: formData.manufacturerId || null,
         categoryId: formData.categoryId || null,
         specification: formData.specification || null,
-        size: formData.size || null,  // v2.1追加
+        size: formData.size || null,
         fabricColor: formData.fabricColor || null,
         quantity: formData.quantity,
         unitId: formData.unitId || null,
@@ -68,6 +72,7 @@ export default function NewProductPage() {
         locationId: formData.locationId || null,
         notes: formData.notes || null,
         images: images,
+        tagIds: selectedTagIds,  // v2.2追加
       }
 
       const response = await fetch('/api/products', {
@@ -184,6 +189,34 @@ export default function NewProductPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* タグ v2.2追加 */}
+            <div className="space-y-2">
+              <Label>タグ</Label>
+              <div className="border border-gray-300 rounded-md p-3 max-h-32 overflow-y-auto">
+                {tags.length === 0 ? (
+                  <p className="text-sm text-gray-400">タグがありません</p>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {tags.map((tag) => (
+                      <label key={tag.id} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={selectedTagIds.includes(tag.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTagIds([...selectedTagIds, tag.id])
+                            } else {
+                              setSelectedTagIds(selectedTagIds.filter((id) => id !== tag.id))
+                            }
+                          }}
+                        />
+                        <span className="text-sm">{tag.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

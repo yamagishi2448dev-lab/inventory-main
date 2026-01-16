@@ -68,5 +68,14 @@ export function buildConsignmentWhereClause(
     where.isSold = false
   }
 
+  // v2.2: タグフィルター（OR条件）
+  if (filters.tagIds && filters.tagIds.length > 0) {
+    where.tags = {
+      some: {
+        tagId: { in: filters.tagIds },
+      },
+    }
+  }
+
   return where
 }

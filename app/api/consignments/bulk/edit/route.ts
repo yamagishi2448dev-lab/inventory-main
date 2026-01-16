@@ -1,20 +1,19 @@
 /**
- * 商品一括編集API
- * POST /api/products/bulk/edit
+ * 委託品一括編集API
+ * POST /api/consignments/bulk/edit
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
 import { authenticateRequest } from '@/lib/auth/middleware'
-import { BulkEditRequest, BulkEditResponse } from '@/lib/types'
 
 // バリデーションスキーマ
 const bulkEditSchema = z.object({
-    productIds: z
-        .array(z.string().cuid('Invalid product ID format'))
-        .min(1, 'At least one product ID is required')
-        .max(100, 'Maximum 100 products can be edited at once'),
+    consignmentIds: z
+        .array(z.string().cuid('Invalid consignment ID format'))
+        .min(1, 'At least one consignment ID is required')
+        .max(100, 'Maximum 100 consignments can be edited at once'),
     updates: z
         .object({
             locationId: z.string().cuid().optional(),
@@ -48,9 +47,8 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-
         // リクエストボディの取得とバリデーション
-        const body = (await request.json()) as BulkEditRequest
+        const body = await request.json()
 
         const validationResult = bulkEditSchema.safeParse(body)
         if (!validationResult.success) {
@@ -63,7 +61,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const { productIds, updates } = validationResult.data
+        const { consignmentIds, updates } = validationResult.data
 
         let updatedCount = 0
 
@@ -71,18 +69,18 @@ export async function POST(request: NextRequest) {
         if (updates.tagIds !== undefined) {
             await prisma.$transaction(async (tx) => {
                 // 既存のタグ関連付けを削除
-                await tx.productTag.deleteMany({
+                await tx.consignmentTag.deleteMany({
                     where: {
-                        productId: { in: productIds },
+                        consignmentId: { in: consignmentIds },
                     },
                 })
 
                 // 新しいタグを関連付け
                 if (updates.tagIds!.length > 0) {
-                    await tx.productTag.createMany({
-                        data: productIds.flatMap((productId) =>
+                    await tx.consignmentTag.createMany({
+                        data: consignmentIds.flatMap((consignmentId) =>
                             updates.tagIds!.map((tagId) => ({
-                                productId,
+                                consignmentId,
                                 tagId,
                             }))
                         ),
@@ -93,28 +91,28 @@ export async function POST(request: NextRequest) {
 
         // 個数の増減モードの場合は個別更新
         if (updates.quantity && updates.quantity.mode === 'increment') {
-            const products = await prisma.product.findMany({
-                where: { id: { in: productIds } },
+            const consignments = await prisma.consignment.findMany({
+                where: { id: { in: consignmentIds } },
                 select: { id: true, quantity: true },
             })
 
             // トランザクションで個別更新
             await prisma.$transaction(
-                products.map((product) => {
-                    const newQuantity = product.quantity + updates.quantity!.value
+                consignments.map((consignment) => {
+                    const newQuantity = consignment.quantity + updates.quantity!.value
                     // 個数が負にならないようにチェック
                     if (newQuantity < 0) {
                         throw new Error(
-                            `商品ID ${product.id} の個数が負になります（現在: ${product.quantity}）`
+                            `委託品ID ${consignment.id} の個数が負になります（現在: ${consignment.quantity}）`
                         )
                     }
-                    return prisma.product.update({
-                        where: { id: product.id },
+                    return prisma.consignment.update({
+                        where: { id: consignment.id },
                         data: { quantity: newQuantity },
                     })
                 })
             )
-            updatedCount = products.length
+            updatedCount = consignments.length
         } else {
             // 通常の一括更新（個数設定モード含む）
             const updateData: Record<string, string | number | null> = {}
@@ -132,9 +130,9 @@ export async function POST(request: NextRequest) {
                 updateData.quantity = updates.quantity.value
             }
 
-            const result = await prisma.product.updateMany({
+            const result = await prisma.consignment.updateMany({
                 where: {
-                    id: { in: productIds },
+                    id: { in: consignmentIds },
                 },
                 data: updateData,
             })
@@ -142,18 +140,19 @@ export async function POST(request: NextRequest) {
             updatedCount = result.count
         }
 
-        const response: BulkEditResponse = {
-            success: true,
-            updatedCount,
-            message: `${updatedCount}件の商品を更新しました`,
-        }
-
-        return NextResponse.json(response, {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8',
+        return NextResponse.json(
+            {
+                success: true,
+                updatedCount,
+                message: `${updatedCount}件の委託品を更新しました`,
             },
-        })
+            {
+                status: 200,
+                headers: {
+                    'Content-Type': 'application/json; charset=utf-8',
+                },
+            }
+        )
     } catch (error) {
         console.error('Bulk edit error:', error)
         return NextResponse.json(

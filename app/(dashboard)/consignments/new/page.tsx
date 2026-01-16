@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import ImageUpload from '@/components/products/ImageUpload'
 import { useFilters } from '@/lib/hooks/useFilters'
 
@@ -16,7 +17,11 @@ export default function NewConsignmentPage() {
   const [error, setError] = useState<string | null>(null)
   const [images, setImages] = useState<{ url: string; order: number }[]>([])
 
-  const { categories, manufacturers, locations, units } = useFilters()
+  // v2.2カスタムフックを使用してフィルタデータを取得
+  const { categories, manufacturers, locations, units, tags } = useFilters()
+
+  // v2.2 タグ選択状態
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
   const [formData, setFormData] = useState({
     name: '',
@@ -49,6 +54,7 @@ export default function NewConsignmentPage() {
     setError(null)
 
     try {
+      // v2.2 ペイロード
       const payload = {
         name: formData.name,
         manufacturerId: formData.manufacturerId || null,
@@ -62,6 +68,7 @@ export default function NewConsignmentPage() {
         arrivalDate: formData.arrivalDate || null,
         locationId: formData.locationId || null,
         notes: formData.notes || null,
+        tagIds: selectedTagIds,  // v2.2追加
       }
 
       const response = await fetch('/api/consignments', {
@@ -197,6 +204,34 @@ export default function NewConsignmentPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* タグ v2.2追加 */}
+            <div className="space-y-2">
+              <Label>タグ</Label>
+              <div className="border border-gray-300 rounded-md p-3 max-h-32 overflow-y-auto">
+                {tags.length === 0 ? (
+                  <p className="text-sm text-gray-400">タグがありません</p>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {tags.map((tag) => (
+                      <label key={tag.id} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={selectedTagIds.includes(tag.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTagIds([...selectedTagIds, tag.id])
+                            } else {
+                              setSelectedTagIds(selectedTagIds.filter((id) => id !== tag.id))
+                            }
+                          }}
+                        />
+                        <span className="text-sm">{tag.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Checkbox } from '@/components/ui/checkbox'
 import ImageUpload from '@/components/products/ImageUpload'
 import { MaterialEditor } from '@/components/products/MaterialEditor'
 import { useFilters } from '@/lib/hooks/useFilters'
@@ -29,7 +30,7 @@ interface Product {
   manufacturer: { id: string; name: string } | null
   category: { id: string; name: string } | null
   specification: string | null
-  size: string | null  // v2.1追加
+  size: string | null
   fabricColor: string | null
   quantity: number
   unit: { id: string; name: string } | null
@@ -39,7 +40,8 @@ interface Product {
   location: { id: string; name: string } | null
   notes: string | null
   images: { id: string; url: string; order: number }[]
-  materials?: ProductMaterial[]  // v2.1追加
+  materials?: ProductMaterial[]
+  tags?: { id: string; tagId: string; tag?: { id: string; name: string } }[]  // v2.2追加
 }
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
@@ -53,7 +55,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [materials, setMaterials] = useState<ProductMaterial[]>([])  // v2.1追加
 
   // v2.0カスタムフックを使用
-  const { categories, manufacturers, locations, units } = useFilters()
+  const { categories, manufacturers, locations, units, tags } = useFilters()
+
+  // v2.2 タグ選択状態
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
   // v2.1フォームデータ
   const [formData, setFormData] = useState({
@@ -120,6 +125,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             order: m.order,
           })))
         }
+        // v2.2追加: タグ情報を設定
+        if (product.tags) {
+          setSelectedTagIds(product.tags.map((t) => t.tagId))
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : '不明なエラーが発生しました')
       } finally {
@@ -148,7 +157,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     setError(null)
 
     try {
-      // v2.1 ペイロード
+      // v2.2 ペイロード
       const payload = {
         name: formData.name,
         manufacturerId: formData.manufacturerId || null,
@@ -164,6 +173,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         locationId: formData.locationId || null,
         notes: formData.notes || null,
         images: images,
+        tagIds: selectedTagIds,  // v2.2追加
       }
 
       const response = await fetch(`/api/products/${productId}`, {
@@ -313,6 +323,34 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* タグ v2.2追加 */}
+            <div className="space-y-2">
+              <Label>タグ</Label>
+              <div className="border border-gray-300 rounded-md p-3 max-h-32 overflow-y-auto">
+                {tags.length === 0 ? (
+                  <p className="text-sm text-gray-400">タグがありません</p>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {tags.map((tag) => (
+                      <label key={tag.id} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={selectedTagIds.includes(tag.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedTagIds([...selectedTagIds, tag.id])
+                            } else {
+                              setSelectedTagIds(selectedTagIds.filter((id) => id !== tag.id))
+                            }
+                          }}
+                        />
+                        <span className="text-sm">{tag.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

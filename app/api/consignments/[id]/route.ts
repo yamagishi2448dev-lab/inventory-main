@@ -68,6 +68,16 @@ export async function GET(
             },
           },
         },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     })
 
@@ -124,7 +134,23 @@ export async function PUT(
       )
     }
 
-    // 委託品更新（SKUは編集不可、原価は常に0）
+    // v2.2追加: タグの更新（既存を削除してから新規作成）
+    if (validatedData.tagIds !== undefined) {
+      await prisma.consignmentTag.deleteMany({
+        where: { consignmentId: params.id },
+      })
+
+      if (validatedData.tagIds.length > 0) {
+        await prisma.consignmentTag.createMany({
+          data: validatedData.tagIds.map((tagId) => ({
+            consignmentId: params.id,
+            tagId,
+          })),
+        })
+      }
+    }
+
+    // 委託品更新（SKUは編集不可、原価は常に0）（v2.2）
     const consignment = await prisma.consignment.update({
       where: { id: params.id },
       data: {
@@ -156,6 +182,16 @@ export async function PUT(
           },
           include: {
             materialType: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },

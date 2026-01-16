@@ -28,13 +28,15 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || undefined
     const sortOrder = searchParams.get('sortOrder') || undefined
 
-    // フィルター条件の取得（v2.1）
+    // フィルター条件の取得（v2.2）
+    const tagIdsParam = searchParams.get('tagIds')
     const filters: ProductFilters = {
       search: searchParams.get('search') || undefined,
       categoryId: searchParams.get('categoryId') || undefined,
       manufacturerId: searchParams.get('manufacturerId') || undefined,
       locationId: searchParams.get('locationId') || undefined,
       arrivalDate: searchParams.get('arrivalDate') || undefined,
+      tagIds: tagIdsParam ? tagIdsParam.split(',').filter(id => id) : undefined,  // v2.2追加
       includeSold: searchParams.get('includeSold') === 'true',  // v2.1追加
     }
 
@@ -93,6 +95,16 @@ export async function GET(request: NextRequest) {
             order: true,
           },
         },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
       orderBy,
       skip: (page - 1) * limit,
@@ -140,7 +152,7 @@ export async function POST(request: NextRequest) {
     // SKU自動採番
     const sku = await generateSku()
 
-    // 商品作成（v2.1）
+    // 商品作成（v2.2）
     const product = await prisma.product.create({
       data: {
         sku,
@@ -159,6 +171,14 @@ export async function POST(request: NextRequest) {
         notes: validatedData.notes || null,
         isSold: validatedData.isSold || false,  // v2.1追加
         soldAt: validatedData.soldAt ? new Date(validatedData.soldAt) : null,  // v2.1追加
+        // v2.2追加: タグの関連付け
+        tags: validatedData.tagIds && validatedData.tagIds.length > 0
+          ? {
+              create: validatedData.tagIds.map((tagId) => ({
+                tagId,
+              })),
+            }
+          : undefined,
       },
       include: {
         category: true,
@@ -166,6 +186,16 @@ export async function POST(request: NextRequest) {
         location: true,
         unit: true,
         images: true,
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     })
 

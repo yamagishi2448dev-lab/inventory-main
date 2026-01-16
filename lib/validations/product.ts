@@ -179,6 +179,12 @@ export const productSchemaV2 = z.object({
     .datetime()
     .optional()
     .nullable(),
+
+  // タグIDの配列（v2.2追加）
+  tagIds: z
+    .array(z.string().cuid('無効なタグIDです'))
+    .optional()
+    .default([]),
 })
 
 // 商品作成用の型（v2.0）

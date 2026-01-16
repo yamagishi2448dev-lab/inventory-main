@@ -89,7 +89,7 @@ function generateConsignmentSku(index: number): string {
 }
 
 async function main() {
-  console.log('シードデータを投入しています（v2.1）...')
+  console.log('シードデータを投入しています（v2.2）...')
 
   // 1. 管理者ユーザーを作成
   const existingAdmin = await prisma.user.findUnique({
@@ -160,7 +160,20 @@ async function main() {
   }
   console.log(`✓ ${materialTypes.length}件の素材項目を作成しました`)
 
-  // 5. システム設定を作成（v2.1追加）
+  // 5. タグマスタを作成（v2.2追加）
+  console.log('\nタグマスタを作成しています...')
+  const tagNames = ['玉家建設用']
+
+  for (const name of tagNames) {
+    await prisma.tag.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    })
+  }
+  console.log(`✓ ${tagNames.length}件のタグを作成しました`)
+
+  // 6. システム設定を作成（v2.1追加）
   console.log('\nシステム設定を作成しています...')
   const operationRules = `【在庫管理システム 運用ルール】
 
@@ -183,14 +196,14 @@ async function main() {
   })
   console.log('✓ システム設定を作成しました')
 
-  // 6. CSVファイルを読み込む
+  // 7. CSVファイルを読み込む
   console.log('\n在庫データを読み込んでいます...')
-  const csvContent = fs.readFileSync('在庫表2025.10 - 在庫一覧.csv', 'utf-8')
+  const csvContent = fs.readFileSync('2025.11.csv', 'utf-8')
   const rows = parseCSV(csvContent)
 
   console.log(`✓ ${rows.length}件の商品データを読み込みました`)
 
-  // 7. ユニークなメーカー、品目を抽出
+  // 8. ユニークなメーカー、品目を抽出
   const manufacturers = [...new Set(rows.map(r => r['メーカー']).filter(Boolean))]
   const categories = [...new Set(rows.map(r => r['品目']).filter(Boolean))]
 
@@ -226,7 +239,7 @@ async function main() {
   console.log(`  場所: ${locationMap.size}件`)
   console.log(`  単位: ${unitMap.size}件`)
 
-  // 8. メーカーを作成
+  // 9. メーカーを作成
   console.log('\nメーカーを作成しています...')
   const manufacturerMap = new Map<string, string>()
 
@@ -240,7 +253,7 @@ async function main() {
   }
   console.log(`✓ ${manufacturers.length}件のメーカーを作成しました`)
 
-  // 9. 品目（カテゴリ）を作成
+  // 10. 品目（カテゴリ）を作成
   console.log('\n品目を作成しています...')
   const categoryMap = new Map<string, string>()
 
@@ -254,7 +267,7 @@ async function main() {
   }
   console.log(`✓ ${categories.length}件の品目を作成しました`)
 
-  // 10. 商品を作成
+  // 11. 商品を作成
   console.log('\n商品を作成しています...')
   let createdCount = 0
   let skippedCount = 0
@@ -319,7 +332,7 @@ async function main() {
   console.log(`  作成: ${createdCount}件`)
   console.log(`  スキップ: ${skippedCount}件`)
 
-  // 11. 委託品を作成（v2.1追加）- 商品と同じデータ、原価0
+  // 12. 委託品を作成（v2.1追加）- 商品と同じデータ、原価0
   console.log('\n委託品を作成しています（原価0円）...')
   let consignmentCreatedCount = 0
 
@@ -380,7 +393,7 @@ async function main() {
   console.log(`\n✓ 委託品の作成が完了しました`)
   console.log(`  作成: ${consignmentCreatedCount}件`)
 
-  console.log('\n=== シードデータの投入が完了しました（v2.1） ===')
+  console.log('\n=== シードデータの投入が完了しました（v2.2） ===')
   console.log(`商品総数: ${createdCount}`)
   console.log(`委託品総数: ${consignmentCreatedCount}`)
   console.log(`品目数: ${categories.length}`)
@@ -388,6 +401,7 @@ async function main() {
   console.log(`場所数: ${locationMap.size}`)
   console.log(`単位数: ${unitMap.size}`)
   console.log(`素材項目数: ${materialTypes.length}`)
+  console.log(`タグ数: ${tagNames.length}`)
 }
 
 main()

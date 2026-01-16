@@ -68,6 +68,16 @@ export async function GET(
             },
           },
         },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     })
 
@@ -124,7 +134,23 @@ export async function PUT(
       )
     }
 
-    // 商品更新（v2.1）- SKUは編集不可
+    // v2.2追加: タグの更新（既存を削除してから新規作成）
+    if (validatedData.tagIds !== undefined) {
+      await prisma.productTag.deleteMany({
+        where: { productId: params.id },
+      })
+
+      if (validatedData.tagIds.length > 0) {
+        await prisma.productTag.createMany({
+          data: validatedData.tagIds.map((tagId) => ({
+            productId: params.id,
+            tagId,
+          })),
+        })
+      }
+    }
+
+    // 商品更新（v2.2）- SKUは編集不可
     const product = await prisma.product.update({
       where: { id: params.id },
       data: {
@@ -156,6 +182,16 @@ export async function PUT(
           },
           include: {
             materialType: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
