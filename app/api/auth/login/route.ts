@@ -5,8 +5,8 @@ import { createSession } from '@/lib/auth/session'
 import { z } from 'zod'
 
 const loginSchema = z.object({
-  username: z.string().min(1, 'ƒ†[ƒU[–¼‚Í•K{‚Å‚·'),
-  password: z.string().min(1, 'ƒpƒXƒ[ƒh‚Í•K{‚Å‚·'),
+  username: z.string().min(1, 'ãƒ¦ãƒ¼ã‚¶ãƒ¼åã¯å¿…é ˆã§ã™'),
+  password: z.string().min(1, 'ãƒ‘ã‚¹ãƒ¯ãƒ¼ãƒ‰ã¯å¿…é ˆã§ã™'),
 })
 
 export async function POST(request: NextRequest) {
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         })
       } else {
         return NextResponse.json(
-          { success: false, error: 'ƒ†[ƒU[–¼‚Ü‚½‚ÍƒpƒXƒ[ƒh‚ª³‚µ‚­‚ ‚è‚Ü‚¹‚ñ' },
+          { success: false, error: 'ãƒ¦ãƒ¼ã‚¶ãƒ¼åã¾ãŸã¯ãƒ‘ã‚¹ãƒ¯ãƒ¼ãƒ‰ãŒæ­£ã—ãã‚ã‚Šã¾ã›ã‚“' },
           { status: 401 }
         )
       }
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     const isValid = await verifyPassword(password, user.passwordHash)
     if (!isValid) {
       return NextResponse.json(
-        { success: false, error: 'ƒ†[ƒU[–¼‚Ü‚½‚ÍƒpƒXƒ[ƒh‚ª³‚µ‚­‚ ‚è‚Ü‚¹‚ñ' },
+        { success: false, error: 'ãƒ¦ãƒ¼ã‚¶ãƒ¼åã¾ãŸã¯ãƒ‘ã‚¹ãƒ¯ãƒ¼ãƒ‰ãŒæ­£ã—ãã‚ã‚Šã¾ã›ã‚“' },
         { status: 401 }
       )
     }
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Login error:', error)
     return NextResponse.json(
-      { success: false, error: 'ƒT[ƒo[ƒGƒ‰[‚ª”­¶‚µ‚Ü‚µ‚½' },
+      { success: false, error: 'ã‚µãƒ¼ãƒãƒ¼ã‚¨ãƒ©ãƒ¼ãŒç™ºç”Ÿã—ã¾ã—ãŸ' },
       { status: 500 }
     )
   }
