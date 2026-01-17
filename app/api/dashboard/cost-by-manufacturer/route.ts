@@ -13,13 +13,15 @@ export async function GET(request: Request) {
 
     try {
         // DB側でGROUP BYとSORT（最適化）
-        const data = await prisma.$queryRaw<Array<{
+        let data: Array<{
             manufacturerId: string,
             manufacturerName: string,
             totalCost: number
-        }>>(
-            sort === 'asc'
-                ? `SELECT
+        }>
+
+        if (sort === 'asc') {
+            data = await prisma.$queryRaw`
+                SELECT
                     m.id as "manufacturerId",
                     m.name as "manufacturerName",
                     COALESCE(SUM(p.cost_price * p.quantity), 0) as "totalCost"
@@ -27,8 +29,11 @@ export async function GET(request: Request) {
                 LEFT JOIN products p ON p.manufacturer_id = m.id
                 GROUP BY m.id, m.name
                 HAVING COALESCE(SUM(p.cost_price * p.quantity), 0) > 0
-                ORDER BY "totalCost" ASC`
-                : `SELECT
+                ORDER BY "totalCost" ASC
+            `
+        } else {
+            data = await prisma.$queryRaw`
+                SELECT
                     m.id as "manufacturerId",
                     m.name as "manufacturerName",
                     COALESCE(SUM(p.cost_price * p.quantity), 0) as "totalCost"
@@ -36,8 +41,9 @@ export async function GET(request: Request) {
                 LEFT JOIN products p ON p.manufacturer_id = m.id
                 GROUP BY m.id, m.name
                 HAVING COALESCE(SUM(p.cost_price * p.quantity), 0) > 0
-                ORDER BY "totalCost" DESC`
-        )
+                ORDER BY "totalCost" DESC
+            `
+        }
 
         const formattedData = data.map(item => ({
             ...item,
