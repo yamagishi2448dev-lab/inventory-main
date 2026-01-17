@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import { verifyPassword } from '@/lib/auth/password'
+import { hashPassword, verifyPassword } from '@/lib/auth/password'
 import { createSession } from '@/lib/auth/session'
 import { z } from 'zod'
 
 const loginSchema = z.object({
-  username: z.string().min(1, 'ãƒ¦ãƒ¼ã‚¶ãƒ¼åã¯å¿…é ˆã§ã™'),
-  password: z.string().min(1, 'ãƒ‘ã‚¹ãƒ¯ãƒ¼ãƒ‰ã¯å¿…é ˆã§ã™'),
+  username: z.string().min(1, 'ƒ†[ƒU[–¼‚Í•K{‚Å‚·'),
+  password: z.string().min(1, 'ƒpƒXƒ[ƒh‚Í•K{‚Å‚·'),
 })
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // ãƒãƒªãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³
     const result = loginSchema.safeParse(body)
     if (!result.success) {
       return NextResponse.json(
@@ -24,31 +23,48 @@ export async function POST(request: NextRequest) {
 
     const { username, password } = result.data
 
-    // ãƒ¦ãƒ¼ã‚¶ãƒ¼æ¤œç´¢
-    const user = await prisma.user.findUnique({
+    const devAutoSeedAdmin = process.env.NODE_ENV !== 'production'
+      && process.env.DEV_AUTO_SEED_ADMIN === 'true'
+    const devAdminUsername = process.env.DEV_ADMIN_USERNAME ?? 'admin'
+    const devAdminPassword = process.env.DEV_ADMIN_PASSWORD ?? 'password123'
+
+    let user = await prisma.user.findUnique({
       where: { username },
     })
 
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'ãƒ¦ãƒ¼ã‚¶ãƒ¼åã¾ãŸã¯ãƒ‘ã‚¹ãƒ¯ãƒ¼ãƒ‰ãŒæ­£ã—ãã‚ã‚Šã¾ã›ã‚“' },
-        { status: 401 }
-      )
+      if (devAutoSeedAdmin && username === devAdminUsername && password === devAdminPassword) {
+        const passwordHash = await hashPassword(devAdminPassword)
+        user = await prisma.user.upsert({
+          where: { username: devAdminUsername },
+          update: {
+            passwordHash,
+            role: 'ADMIN',
+          },
+          create: {
+            username: devAdminUsername,
+            passwordHash,
+            role: 'ADMIN',
+          },
+        })
+      } else {
+        return NextResponse.json(
+          { success: false, error: 'ƒ†[ƒU[–¼‚Ü‚½‚ÍƒpƒXƒ[ƒh‚ª³‚µ‚­‚ ‚è‚Ü‚¹‚ñ' },
+          { status: 401 }
+        )
+      }
     }
 
-    // ãƒ‘ã‚¹ãƒ¯ãƒ¼ãƒ‰æ¤œè¨¼
     const isValid = await verifyPassword(password, user.passwordHash)
     if (!isValid) {
       return NextResponse.json(
-        { success: false, error: 'ãƒ¦ãƒ¼ã‚¶ãƒ¼åã¾ãŸã¯ãƒ‘ã‚¹ãƒ¯ãƒ¼ãƒ‰ãŒæ­£ã—ãã‚ã‚Šã¾ã›ã‚“' },
+        { success: false, error: 'ƒ†[ƒU[–¼‚Ü‚½‚ÍƒpƒXƒ[ƒh‚ª³‚µ‚­‚ ‚è‚Ü‚¹‚ñ' },
         { status: 401 }
       )
     }
 
-    // ã‚»ãƒƒã‚·ãƒ§ãƒ³ä½œæˆ
     const token = await createSession(user.id)
 
-    // ãƒ¬ã‚¹ãƒãƒ³ã‚¹ä½œæˆ
     const response = NextResponse.json(
       {
         success: true,
@@ -61,12 +77,11 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     )
 
-    // Cookieã«ã‚»ãƒƒã‚·ãƒ§ãƒ³ãƒˆãƒ¼ã‚¯ãƒ³ã‚’è¨­å®š
     response.cookies.set('inventory_session', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7æ—¥
+      maxAge: 60 * 60 * 24 * 7,
       path: '/',
     })
 
@@ -74,7 +89,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Login error:', error)
     return NextResponse.json(
-      { success: false, error: 'ã‚µãƒ¼ãƒãƒ¼ã‚¨ãƒ©ãƒ¼ãŒç™ºç”Ÿã—ã¾ã—ãŸ' },
+      { success: false, error: 'ƒT[ƒo[ƒGƒ‰[‚ª”­¶‚µ‚Ü‚µ‚½' },
       { status: 500 }
     )
   }

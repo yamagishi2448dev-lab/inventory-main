@@ -11,32 +11,25 @@ export async function GET() {
   }
 
   try {
-    // 商品総数
-    const totalProducts = await prisma.product.count()
+    // 商品総数、品目数、メーカー数、原価合計を並列取得
+    const [totalProducts, totalCategories, totalManufacturers, costResult] = await Promise.all([
+      prisma.product.count(),
+      prisma.category.count(),
+      prisma.manufacturer.count(),
+      // DB側でSUM計算を実行（最適化）
+      prisma.$queryRaw<[{ total: number | null }]>`
+        SELECT COALESCE(SUM(cost_price * quantity), 0) as total
+        FROM products
+      `
+    ])
 
-    // 品目数
-    const totalCategories = await prisma.category.count()
-
-    // メーカー数
-    const totalManufacturers = await prisma.manufacturer.count()
-
-    // 全商品の原価合計を計算
-    const products = await prisma.product.findMany({
-      select: {
-        costPrice: true,
-        quantity: true,
-      },
-    })
-
-    const totalCost = products.reduce((sum, product) => {
-      return sum + (product.costPrice.toNumber() * product.quantity)
-    }, 0)
+    const totalCost = costResult[0]?.total || 0
 
     return NextResponse.json({
       totalProducts,
       totalCategories,
       totalManufacturers,
-      totalCost: totalCost.toFixed(2),
+      totalCost: Number(totalCost).toFixed(2),
     })
   } catch (error) {
     console.error('統計情報取得エラー:', error)

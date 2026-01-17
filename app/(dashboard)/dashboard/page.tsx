@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import useSWR from 'swr'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatPrice } from '@/lib/utils'
 import { CostByManufacturer } from '@/components/dashboard/CostByManufacturer'
 import { OperationRulesCard } from '@/components/dashboard/OperationRulesCard'
 import { RecentChanges } from '@/components/dashboard/RecentChanges'
+
+// SWR fetcher
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 // v2.1 Stats interface
 interface Stats {
@@ -23,39 +26,27 @@ interface User {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<User | null>(null)  // v2.1追加
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [statsRes, sessionRes] = await Promise.all([
-          fetch('/api/dashboard/stats'),
-          fetch('/api/auth/session'),  // v2.1追加
-        ])
-
-        if (statsRes.ok) {
-          const data = await statsRes.json()
-          setStats(data)
-        }
-
-        // v2.1追加: ユーザー情報取得
-        if (sessionRes.ok) {
-          const data = await sessionRes.json()
-          if (data.authenticated && data.user) {
-            setUser(data.user)
-          }
-        }
-      } catch (error) {
-        console.error('ダッシュボードデータの取得に失敗しました:', error)
-      } finally {
-        setLoading(false)
-      }
+  // SWRでキャッシュを有効化（60秒ごとに再検証）
+  const { data: stats, isLoading: statsLoading } = useSWR<Stats>(
+    '/api/dashboard/stats',
+    fetcher,
+    {
+      refreshInterval: 60000, // 60秒ごとに自動更新
+      dedupingInterval: 30000, // 30秒以内の重複リクエストを排除
     }
+  )
 
-    fetchData()
-  }, [])
+  const { data: session, isLoading: sessionLoading } = useSWR(
+    '/api/auth/session',
+    fetcher,
+    {
+      refreshInterval: 300000, // 5分ごとに自動更新
+      dedupingInterval: 60000,
+    }
+  )
+
+  const loading = statsLoading || sessionLoading
+  const user = session?.authenticated ? session.user : null
 
   if (loading) {
     return (

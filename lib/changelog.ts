@@ -22,7 +22,7 @@ interface CreateChangeLogParams {
 }
 
 /**
- * 変更履歴を作成する
+ * 変更履歴を保存する
  */
 export async function createChangeLog(params: CreateChangeLogParams): Promise<void> {
   const { entityType, entityId, entityName, entitySku, action, changes, userId, userName } = params
@@ -42,12 +42,12 @@ export async function createChangeLog(params: CreateChangeLogParams): Promise<vo
     })
   } catch (error) {
     console.error('Failed to create change log:', error)
-    // 変更履歴の記録に失敗しても処理は続行する
+    // 変更履歴の失敗は主処理を止めない
   }
 }
 
 /**
- * 変更内容を比較してChangeLogFieldsを生成する
+ * 変更前後の差分を抽出してChangeLogFieldsに変換する
  */
 export function compareChanges(
   before: Record<string, unknown>,
@@ -88,7 +88,7 @@ function formatValue(value: unknown): string {
 }
 
 /**
- * 商品の変更を比較するためのフィールドラベル定義
+ * 商品の変更履歴に表示するラベル
  */
 export const PRODUCT_FIELD_LABELS: Record<string, string> = {
   name: '商品名',
@@ -96,7 +96,7 @@ export const PRODUCT_FIELD_LABELS: Record<string, string> = {
   categoryId: '品目',
   specification: '仕様',
   size: 'サイズ',
-  fabricColor: '張地/カラー',
+  fabricColor: '生地/カラー',
   quantity: '個数',
   unitId: '単位',
   costPrice: '原価単価',

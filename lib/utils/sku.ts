@@ -6,22 +6,29 @@ import { prisma } from '../db/prisma'
  * 例: SKU-00001, SKU-00002, ...
  */
 export async function generateSku(): Promise<string> {
-    // 最新のSKUを取得
-    const lastProduct = await prisma.product.findFirst({
-        orderBy: { sku: 'desc' },
-        select: { sku: true }
+    // シーケンスカウンター方式: SystemSettingテーブルでカウンターを管理
+    const result = await prisma.$transaction(async (tx) => {
+        // 現在のカウンター値を取得または初期化
+        const setting = await tx.systemSetting.findUnique({
+            where: { key: 'next_product_sku' }
+        })
+
+        let nextNumber = 1
+        if (setting) {
+            nextNumber = parseInt(setting.value, 10)
+        }
+
+        // カウンターをインクリメント
+        await tx.systemSetting.upsert({
+            where: { key: 'next_product_sku' },
+            update: { value: String(nextNumber + 1) },
+            create: { key: 'next_product_sku', value: String(nextNumber + 1) }
+        })
+
+        return nextNumber
     })
 
-    let nextNumber = 1
-
-    if (lastProduct?.sku) {
-        const match = lastProduct.sku.match(/SKU-(\d+)/)
-        if (match) {
-            nextNumber = parseInt(match[1], 10) + 1
-        }
-    }
-
-    return `SKU-${nextNumber.toString().padStart(5, '0')}`
+    return `SKU-${result.toString().padStart(5, '0')}`
 }
 
 /**
@@ -39,22 +46,29 @@ export function isValidSkuFormat(sku: string): boolean {
  * 例: CSG-00001, CSG-00002, ...
  */
 export async function generateConsignmentSku(): Promise<string> {
-    // 最新のSKUを取得
-    const lastConsignment = await prisma.consignment.findFirst({
-        orderBy: { sku: 'desc' },
-        select: { sku: true }
+    // シーケンスカウンター方式: SystemSettingテーブルでカウンターを管理
+    const result = await prisma.$transaction(async (tx) => {
+        // 現在のカウンター値を取得または初期化
+        const setting = await tx.systemSetting.findUnique({
+            where: { key: 'next_consignment_sku' }
+        })
+
+        let nextNumber = 1
+        if (setting) {
+            nextNumber = parseInt(setting.value, 10)
+        }
+
+        // カウンターをインクリメント
+        await tx.systemSetting.upsert({
+            where: { key: 'next_consignment_sku' },
+            update: { value: String(nextNumber + 1) },
+            create: { key: 'next_consignment_sku', value: String(nextNumber + 1) }
+        })
+
+        return nextNumber
     })
 
-    let nextNumber = 1
-
-    if (lastConsignment?.sku) {
-        const match = lastConsignment.sku.match(/CSG-(\d+)/)
-        if (match) {
-            nextNumber = parseInt(match[1], 10) + 1
-        }
-    }
-
-    return `CSG-${nextNumber.toString().padStart(5, '0')}`
+    return `CSG-${result.toString().padStart(5, '0')}`
 }
 
 /**

@@ -12,44 +12,39 @@ export async function GET(request: Request) {
     const sort = searchParams.get('sort') === 'asc' ? 'asc' : 'desc'
 
     try {
-        const manufacturers = await prisma.manufacturer.findMany({
-            select: {
-                id: true,
-                name: true,
-                products: {
-                    select: {
-                        costPrice: true,
-                        quantity: true,
-                    }
-                }
-            }
-        })
+        // DB側でGROUP BYとSORT（最適化）
+        const data = await prisma.$queryRaw<Array<{
+            manufacturerId: string,
+            manufacturerName: string,
+            totalCost: number
+        }>>(
+            sort === 'asc'
+                ? `SELECT
+                    m.id as "manufacturerId",
+                    m.name as "manufacturerName",
+                    COALESCE(SUM(p.cost_price * p.quantity), 0) as "totalCost"
+                FROM manufacturers m
+                LEFT JOIN products p ON p.manufacturer_id = m.id
+                GROUP BY m.id, m.name
+                HAVING COALESCE(SUM(p.cost_price * p.quantity), 0) > 0
+                ORDER BY "totalCost" ASC`
+                : `SELECT
+                    m.id as "manufacturerId",
+                    m.name as "manufacturerName",
+                    COALESCE(SUM(p.cost_price * p.quantity), 0) as "totalCost"
+                FROM manufacturers m
+                LEFT JOIN products p ON p.manufacturer_id = m.id
+                GROUP BY m.id, m.name
+                HAVING COALESCE(SUM(p.cost_price * p.quantity), 0) > 0
+                ORDER BY "totalCost" DESC`
+        )
 
-        const data = manufacturers.map(m => {
-            const totalCost = m.products.reduce((sum, p) => {
-                return sum + (Number(p.costPrice) * p.quantity)
-            }, 0)
+        const formattedData = data.map(item => ({
+            ...item,
+            totalCost: Number(item.totalCost).toFixed(2)
+        }))
 
-            return {
-                manufacturerId: m.id,
-                manufacturerName: m.name,
-                totalCost
-            }
-        })
-            .filter(item => item.totalCost > 0) // 原価合計が0のメーカーは除外（オプション）
-            .sort((a, b) => {
-                if (sort === 'asc') {
-                    return a.totalCost - b.totalCost
-                } else {
-                    return b.totalCost - a.totalCost
-                }
-            })
-            .map(item => ({
-                ...item,
-                totalCost: item.totalCost.toFixed(2)
-            }))
-
-        return NextResponse.json({ data })
+        return NextResponse.json({ data: formattedData })
 
     } catch (error) {
         console.error('メーカー別原価取得エラー:', error)

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db/prisma'
+import { Prisma } from '@prisma/client'
 import { authenticateRequest } from '@/lib/auth/middleware'
 import { BulkEditRequest, BulkEditResponse } from '@/lib/types'
 
@@ -91,30 +92,34 @@ export async function POST(request: NextRequest) {
             })
         }
 
-        // 個数の増減モードの場合は個別更新
+        // 個数の増減モードの場合はバッチ更新（最適化）
         if (updates.quantity && updates.quantity.mode === 'increment') {
-            const products = await prisma.product.findMany({
-                where: { id: { in: productIds } },
-                select: { id: true, quantity: true },
-            })
+            const incrementValue = updates.quantity.value
 
-            // トランザクションで個別更新
-            await prisma.$transaction(
-                products.map((product) => {
-                    const newQuantity = product.quantity + updates.quantity!.value
-                    // 個数が負にならないようにチェック
-                    if (newQuantity < 0) {
-                        throw new Error(
-                            `商品ID ${product.id} の個数が負になります（現在: ${product.quantity}）`
-                        )
-                    }
-                    return prisma.product.update({
-                        where: { id: product.id },
-                        data: { quantity: newQuantity },
-                    })
+            // 負の数になる商品がないかチェック
+            if (incrementValue < 0) {
+                const invalidProducts = await prisma.product.findMany({
+                    where: {
+                        id: { in: productIds },
+                        quantity: { lt: Math.abs(incrementValue) }
+                    },
+                    select: { id: true, quantity: true }
                 })
-            )
-            updatedCount = products.length
+
+                if (invalidProducts.length > 0) {
+                    throw new Error(
+                        `一部の商品の個数が負になります（対象: ${invalidProducts.length}件）`
+                    )
+                }
+            }
+
+            // バッチUPDATEで一括更新
+            const result = await prisma.$executeRaw`
+                UPDATE products
+                SET quantity = quantity + ${incrementValue}
+                WHERE id IN (${Prisma.join(productIds)})
+            `
+            updatedCount = Number(result)
         } else {
             // 通常の一括更新（個数設定モード含む）
             const updateData: Record<string, string | number | null> = {}
