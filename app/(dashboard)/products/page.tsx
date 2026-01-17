@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -77,7 +77,11 @@ export default function ProductsPage() {
   const categoryId = searchParams.get('categoryId') || ''
   const manufacturerId = searchParams.get('manufacturerId') || ''
   const locationId = searchParams.get('locationId') || ''
-  const tagIds = searchParams.get('tagIds')?.split(',').filter(Boolean) || []  // v2.2追加
+  // v2.2追加: useMemoでメモ化して無限ループを防ぐ
+  const tagIds = useMemo(
+    () => searchParams.get('tagIds')?.split(',').filter(Boolean) || [],
+    [searchParams]
+  )
   const includeSold = searchParams.get('includeSold') === 'true'  // v2.1追加
   const sortBy = (searchParams.get('sortBy') || '') as SortField | ''
   const sortOrder = (searchParams.get('sortOrder') || '') as SortOrder | ''
