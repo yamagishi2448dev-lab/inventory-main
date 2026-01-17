@@ -18,7 +18,7 @@ export async function GET() {
       prisma.manufacturer.count(),
       // DB側でSUM計算を実行（最適化）
       prisma.$queryRaw<[{ total: number | null }]>`
-        SELECT COALESCE(SUM(cost_price * quantity), 0) as total
+        SELECT COALESCE(SUM("costPrice" * quantity), 0) as total
         FROM products
       `
     ])

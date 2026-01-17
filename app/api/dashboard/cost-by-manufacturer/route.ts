@@ -24,11 +24,11 @@ export async function GET(request: Request) {
                 SELECT
                     m.id as "manufacturerId",
                     m.name as "manufacturerName",
-                    COALESCE(SUM(p.cost_price * p.quantity), 0) as "totalCost"
+                    COALESCE(SUM(p."costPrice" * p.quantity), 0) as "totalCost"
                 FROM manufacturers m
-                LEFT JOIN products p ON p.manufacturer_id = m.id
+                LEFT JOIN products p ON p."manufacturerId" = m.id
                 GROUP BY m.id, m.name
-                HAVING COALESCE(SUM(p.cost_price * p.quantity), 0) > 0
+                HAVING COALESCE(SUM(p."costPrice" * p.quantity), 0) > 0
                 ORDER BY "totalCost" ASC
             `
         } else {
@@ -36,11 +36,11 @@ export async function GET(request: Request) {
                 SELECT
                     m.id as "manufacturerId",
                     m.name as "manufacturerName",
-                    COALESCE(SUM(p.cost_price * p.quantity), 0) as "totalCost"
+                    COALESCE(SUM(p."costPrice" * p.quantity), 0) as "totalCost"
                 FROM manufacturers m
-                LEFT JOIN products p ON p.manufacturer_id = m.id
+                LEFT JOIN products p ON p."manufacturerId" = m.id
                 GROUP BY m.id, m.name
-                HAVING COALESCE(SUM(p.cost_price * p.quantity), 0) > 0
+                HAVING COALESCE(SUM(p."costPrice" * p.quantity), 0) > 0
                 ORDER BY "totalCost" DESC
             `
         }
