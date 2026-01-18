@@ -9,6 +9,7 @@ const CSV_HEADERS = [
   'メーカー',
   '品目',
   '仕様',
+  'サイズ',
   '張地/カラー',
   '個数',
   '単位',
@@ -16,7 +17,10 @@ const CSV_HEADERS = [
   '定価単価',
   '入荷年月',
   '場所',
+  'タグ',
   '備考',
+  '販売済み',
+  '販売日時',
   '作成日時',
   '更新日時',
 ]
@@ -48,6 +52,11 @@ export async function GET() {
         category: true,
         unit: true,
         location: true,
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
       },
       orderBy: { sku: 'asc' },
     })
@@ -60,6 +69,8 @@ export async function GET() {
 
     // データ行
     for (const product of products) {
+      // タグをパイプ区切りで結合
+      const tagNames = product.tags.map((pt) => pt.tag.name).join('|')
       const row = [
         escapeCSV(product.id),
         escapeCSV(product.sku),
@@ -67,6 +78,7 @@ export async function GET() {
         escapeCSV(product.manufacturer?.name),
         escapeCSV(product.category?.name),
         escapeCSV(product.specification),
+        escapeCSV(product.size),
         escapeCSV(product.fabricColor),
         String(product.quantity),
         escapeCSV(product.unit?.name),
@@ -74,7 +86,10 @@ export async function GET() {
         product.listPrice ? String(product.listPrice) : '',
         escapeCSV(product.arrivalDate),
         escapeCSV(product.location?.name),
+        escapeCSV(tagNames),
         escapeCSV(product.notes),
+        product.isSold ? 'はい' : 'いいえ',
+        product.soldAt ? formatDateTime(product.soldAt) : '',
         formatDateTime(product.createdAt),
         formatDateTime(product.updatedAt),
       ]

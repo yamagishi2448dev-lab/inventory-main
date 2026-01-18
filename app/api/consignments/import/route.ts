@@ -72,17 +72,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const [manufacturers, categories, locations, units] = await Promise.all([
+    const [manufacturers, categories, locations, units, tags] = await Promise.all([
       prisma.manufacturer.findMany({ select: { id: true, name: true } }),
       prisma.category.findMany({ select: { id: true, name: true } }),
       prisma.location.findMany({ select: { id: true, name: true } }),
       prisma.unit.findMany({ select: { id: true, name: true } }),
+      prisma.tag.findMany({ select: { id: true, name: true } }),
     ])
 
     const manufacturerMap = new Map(manufacturers.map((item) => [item.name, item.id]))
     const categoryMap = new Map(categories.map((item) => [item.name, item.id]))
     const locationMap = new Map(locations.map((item) => [item.name, item.id]))
     const unitMap = new Map(units.map((item) => [item.name, item.id]))
+    const tagMap = new Map(tags.map((item) => [item.name, item.id]))
 
     const resolveNameId = async (
       name: string,
@@ -96,6 +98,23 @@ export async function POST(request: NextRequest) {
       const created = await create(trimmed)
       map.set(trimmed, created.id)
       return created.id
+    }
+
+    // タグ名のパイプ区切り文字列からタグID配列を解決
+    const resolveTagIds = async (tagNamesStr: string): Promise<string[]> => {
+      if (!tagNamesStr.trim()) return []
+      const tagNames = tagNamesStr.split('|').map((name) => name.trim()).filter(Boolean)
+      const tagIds: string[] = []
+      for (const name of tagNames) {
+        let tagId = tagMap.get(name)
+        if (!tagId) {
+          const created = await prisma.tag.create({ data: { name } })
+          tagMap.set(name, created.id)
+          tagId = created.id
+        }
+        tagIds.push(tagId)
+      }
+      return tagIds
     }
 
     const errors: ImportError[] = []
@@ -157,6 +176,9 @@ export async function POST(request: NextRequest) {
         (value) => prisma.unit.create({ data: { name: value } })
       )
 
+      // タグの解決
+      const tagIds = await resolveTagIds(getValue('タグ'))
+
       const isSold = soldAtParsed.value ? true : soldFlag.value ?? false
       const payload = {
         name,
@@ -198,6 +220,16 @@ export async function POST(request: NextRequest) {
             soldAt: validated.soldAt ? new Date(validated.soldAt) : null,
           },
         })
+
+        // タグの関連付け
+        if (tagIds.length > 0) {
+          await prisma.consignmentTag.createMany({
+            data: tagIds.map((tagId) => ({
+              consignmentId: consignment.id,
+              tagId,
+            })),
+          })
+        }
 
         if (auth.user) {
           await createChangeLog({

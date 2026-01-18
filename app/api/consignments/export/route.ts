@@ -35,6 +35,11 @@ export async function GET(request: NextRequest) {
         manufacturer: { select: { name: true } },
         location: { select: { name: true } },
         unit: { select: { name: true } },
+        tags: {
+          include: {
+            tag: { select: { name: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -54,29 +59,35 @@ export async function GET(request: NextRequest) {
       '定価単価',
       '入荷年月',
       '場所',
+      'タグ',
       '備考',
       '販売済み',
       '販売日時',
     ]
 
-    const rows = consignments.map((c) => [
-      c.sku,
-      c.name,
-      c.manufacturer?.name || '',
-      c.category?.name || '',
-      c.specification || '',
-      c.size || '',
-      c.fabricColor || '',
-      String(c.quantity),
-      c.unit?.name || '',
-      c.costPrice.toString(),
-      c.listPrice?.toString() || '',
-      c.arrivalDate || '',
-      c.location?.name || '',
-      c.notes || '',
-      c.isSold ? 'はい' : 'いいえ',
-      c.soldAt ? new Date(c.soldAt).toLocaleString('ja-JP') : '',
-    ])
+    const rows = consignments.map((c) => {
+      // タグをパイプ区切りで結合
+      const tagNames = c.tags.map((ct) => ct.tag.name).join('|')
+      return [
+        c.sku,
+        c.name,
+        c.manufacturer?.name || '',
+        c.category?.name || '',
+        c.specification || '',
+        c.size || '',
+        c.fabricColor || '',
+        String(c.quantity),
+        c.unit?.name || '',
+        c.costPrice.toString(),
+        c.listPrice?.toString() || '',
+        c.arrivalDate || '',
+        c.location?.name || '',
+        tagNames,
+        c.notes || '',
+        c.isSold ? 'はい' : 'いいえ',
+        c.soldAt ? new Date(c.soldAt).toLocaleString('ja-JP') : '',
+      ]
+    })
 
     // BOM付きUTF-8でCSVを生成
     const BOM = '\uFEFF'

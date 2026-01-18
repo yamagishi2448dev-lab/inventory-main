@@ -1,151 +1,261 @@
 import { PrismaClient } from '@prisma/client'
 import { hashPassword } from '../lib/auth/password'
+import { parse } from 'csv-parse/sync'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const prisma = new PrismaClient({
   log: ['error'],
 })
 
+// 金額文字列を数値に変換（"91,640 " → 91640）
+function parsePrice(priceStr: string | undefined): number {
+  if (!priceStr || priceStr.trim() === '') return 0
+  const cleaned = priceStr.replace(/[,\s]/g, '')
+  const num = parseFloat(cleaned)
+  return isNaN(num) ? 0 : num
+}
+
+// 数量文字列を整数に変換
+function parseQuantity(qtyStr: string | undefined): number {
+  if (!qtyStr || qtyStr.trim() === '') return 0
+  const num = parseInt(qtyStr.trim(), 10)
+  return isNaN(num) ? 0 : num
+}
+
 async function main() {
+  console.log('🗑️  Clearing existing data...')
+
+  // 既存データをすべて削除（順序に注意）
+  await prisma.productTag.deleteMany()
+  await prisma.consignmentTag.deleteMany()
+  await prisma.tag.deleteMany()
+  await prisma.productMaterial.deleteMany()
+  await prisma.consignmentMaterial.deleteMany()
+  await prisma.materialType.deleteMany()
+  await prisma.productImage.deleteMany()
+  await prisma.consignmentImage.deleteMany()
+  await prisma.product.deleteMany()
+  await prisma.consignment.deleteMany()
+  await prisma.manufacturer.deleteMany()
+  await prisma.category.deleteMany()
+  await prisma.location.deleteMany()
+  await prisma.unit.deleteMany()
+  await prisma.changeLog.deleteMany()
+  await prisma.systemSetting.deleteMany()
+  await prisma.session.deleteMany()
+  await prisma.user.deleteMany()
+
+  console.log('✓ All existing data cleared')
+
   // 1. Adminユーザー作成
   const passwordHash = await hashPassword('password123')
-
-  await prisma.user.upsert({
-    where: { username: 'admin' },
-    update: {
-      passwordHash,
-      role: 'ADMIN',
-    },
-    create: {
+  await prisma.user.create({
+    data: {
       username: 'admin',
       passwordHash,
       role: 'ADMIN',
     },
   })
+  console.log('✓ Created admin user: username=admin, password=password123')
 
-  console.log('✓ Seeded admin user: username=admin, password=password123')
+  // 2. CSVファイルを読み込み
+  const csvPath = path.join(process.cwd(), '2025.11.csv')
+  const csvContent = fs.readFileSync(csvPath, 'utf-8')
+  const records = parse(csvContent, {
+    columns: true,
+    skip_empty_lines: true,
+    bom: true,
+    relax_column_count: true,
+  }) as Record<string, string>[]
+  console.log(`✓ Loaded ${records.length} records from CSV`)
 
-  // 2. 単位マスタ
-  const units = ['台', '個', '枚', '脚', '式', '本', '点', '箱', '冊', 'セット']
-  for (const unitName of units) {
-    await prisma.unit.upsert({
-      where: { name: unitName },
-      update: {},
-      create: { name: unitName },
-    })
+  // 3. ユニークなマスタデータを抽出
+  const manufacturerNames = new Set<string>()
+  const categoryNames = new Set<string>()
+  const locationNames = new Set<string>()
+  const unitNames = new Set<string>()
+
+  for (const record of records) {
+    const manufacturer = record['メーカー']?.trim()
+    const category = record['品目']?.trim()
+    const location = record['場所']?.trim()
+    const unit = record['単位']?.trim()
+
+    if (manufacturer) manufacturerNames.add(manufacturer)
+    if (category) categoryNames.add(category)
+    if (location) locationNames.add(location)
+    if (unit) unitNames.add(unit)
   }
-  console.log(`✓ Seeded ${units.length} units`)
 
-  // 3. 場所マスタ
-  const locations = ['SRバックヤード', '粟崎', 'リンテルノ展示', '不明・破棄', '貸出']
-  for (const locationName of locations) {
-    await prisma.location.upsert({
-      where: { name: locationName },
-      update: {},
-      create: { name: locationName },
-    })
+  // 4. 単位マスタ作成
+  const unitMap = new Map<string, string>()
+  for (const name of unitNames) {
+    const unit = await prisma.unit.create({ data: { name } })
+    unitMap.set(name, unit.id)
   }
-  console.log(`✓ Seeded ${locations.length} locations`)
+  console.log(`✓ Created ${unitNames.size} units`)
 
-  // 4. メーカーマスタ（サンプル）
-  const manufacturers = ['サンプルメーカーA', 'サンプルメーカーB', 'サンプルメーカーC']
-  for (const manufacturerName of manufacturers) {
-    await prisma.manufacturer.upsert({
-      where: { name: manufacturerName },
-      update: {},
-      create: { name: manufacturerName },
-    })
+  // 5. 場所マスタ作成
+  const locationMap = new Map<string, string>()
+  for (const name of locationNames) {
+    const location = await prisma.location.create({ data: { name } })
+    locationMap.set(name, location.id)
   }
-  console.log(`✓ Seeded ${manufacturers.length} manufacturers`)
+  console.log(`✓ Created ${locationNames.size} locations`)
 
-  // 5. 品目マスタ（サンプル）
-  const categories = ['家具', '雑貨', '照明', 'インテリア']
-  for (const categoryName of categories) {
-    await prisma.category.upsert({
-      where: { name: categoryName },
-      update: {},
-      create: { name: categoryName },
-    })
+  // 6. メーカーマスタ作成
+  const manufacturerMap = new Map<string, string>()
+  for (const name of manufacturerNames) {
+    const manufacturer = await prisma.manufacturer.create({ data: { name } })
+    manufacturerMap.set(name, manufacturer.id)
   }
-  console.log(`✓ Seeded ${categories.length} categories`)
+  console.log(`✓ Created ${manufacturerNames.size} manufacturers`)
 
-  // 6. サンプル商品データ
-  const unitTai = await prisma.unit.findFirst({ where: { name: '台' } })
-  const locationSr = await prisma.location.findFirst({ where: { name: 'SRバックヤード' } })
-  const manufacturerA = await prisma.manufacturer.findFirst({ where: { name: 'サンプルメーカーA' } })
-  const categoryKagu = await prisma.category.findFirst({ where: { name: '家具' } })
+  // 7. 品目マスタ作成
+  const categoryMap = new Map<string, string>()
+  for (const name of categoryNames) {
+    const category = await prisma.category.create({ data: { name } })
+    categoryMap.set(name, category.id)
+  }
+  console.log(`✓ Created ${categoryNames.size} categories`)
 
-  // SKU採番用の初期設定
-  await prisma.systemSetting.upsert({
-    where: { key: 'next_product_sku' },
-    update: {},
-    create: { key: 'next_product_sku', value: '1' },
+  // 8. タグ「玉家建設用」を作成
+  const tag = await prisma.tag.create({
+    data: { name: '玉家建設用' }
+  })
+  console.log('✓ Created tag: 玉家建設用')
+
+  // 9. SKU採番用の初期設定
+  await prisma.systemSetting.create({
+    data: { key: 'next_product_sku', value: '1' },
+  })
+  await prisma.systemSetting.create({
+    data: { key: 'next_consignment_sku', value: '1' },
   })
 
-  await prisma.systemSetting.upsert({
-    where: { key: 'next_consignment_sku' },
-    update: {},
-    create: { key: 'next_consignment_sku', value: '1' },
-  })
+  // 10. 商品データ作成
+  let skuCounter = 1
+  let productCount = 0
 
-  const sampleProducts = [
-    {
-      sku: 'SKU-00001',
-      name: 'サンプルソファ',
-      manufacturerId: manufacturerA?.id,
-      categoryId: categoryKagu?.id,
-      specification: '3人掛け',
-      fabricColor: 'ベージュ',
-      quantity: 2,
-      unitId: unitTai?.id,
-      costPrice: 45000,
-      listPrice: 89800,
-      locationId: locationSr?.id,
-      arrivalDate: '2026年1月',
-      notes: 'サンプル商品データ',
-    },
-    {
-      sku: 'SKU-00002',
-      name: 'サンプルテーブル',
-      manufacturerId: manufacturerA?.id,
-      categoryId: categoryKagu?.id,
-      specification: 'W1200×D800',
-      fabricColor: 'ウォールナット',
-      quantity: 1,
-      unitId: unitTai?.id,
-      costPrice: 32000,
-      listPrice: 68000,
-      locationId: locationSr?.id,
-      arrivalDate: '2026年1月',
-    },
-    {
-      sku: 'SKU-00003',
-      name: 'サンプルチェア',
-      manufacturerId: manufacturerA?.id,
-      categoryId: categoryKagu?.id,
-      specification: 'ダイニングチェア',
-      fabricColor: 'グレー',
-      quantity: 4,
-      unitId: unitTai?.id,
-      costPrice: 8500,
-      listPrice: 18900,
-      locationId: locationSr?.id,
-      arrivalDate: '2026年1月',
-    },
-  ]
+  for (const record of records) {
+    const name = record['商品名']?.trim()
+    if (!name) continue // 商品名がない行はスキップ
 
-  for (const product of sampleProducts) {
-    await prisma.product.create({ data: product })
+    const manufacturer = record['メーカー']?.trim()
+    const category = record['品目']?.trim()
+    const specification = record['仕様　張地/カラー']?.trim() || null
+    const quantity = parseQuantity(record['個数'])
+    const unit = record['単位']?.trim()
+    const costPrice = parsePrice(record['原価単価'])
+    const listPrice = parsePrice(record['定価単価'])
+    const arrivalDate = record['入荷年月']?.trim() || null
+    const location = record['場所']?.trim()
+    const notes = record['備考']?.trim() || null
+
+    const sku = `SKU-${String(skuCounter).padStart(5, '0')}`
+    skuCounter++
+
+    await prisma.product.create({
+      data: {
+        sku,
+        name,
+        manufacturerId: manufacturer ? manufacturerMap.get(manufacturer) : null,
+        categoryId: category ? categoryMap.get(category) : null,
+        specification,
+        fabricColor: null,
+        quantity,
+        unitId: unit ? unitMap.get(unit) : null,
+        costPrice,
+        listPrice: listPrice > 0 ? listPrice : null,
+        arrivalDate,
+        locationId: location ? locationMap.get(location) : null,
+        notes,
+      },
+    })
+    productCount++
   }
-
-  console.log(`✓ Seeded ${sampleProducts.length} sample products`)
 
   // SKUカウンターを更新
   await prisma.systemSetting.update({
     where: { key: 'next_product_sku' },
+    data: { value: String(skuCounter) },
+  })
+  console.log(`✓ Created ${productCount} products`)
+
+  // 11. 委託品テストデータ3件作成
+  const consignmentData = [
+    {
+      sku: 'CSG-00001',
+      name: '委託ソファ（サンプル）',
+      specification: '2人掛け',
+      quantity: 1,
+      costPrice: 0,
+      listPrice: 120000,
+      notes: '委託品テストデータ',
+    },
+    {
+      sku: 'CSG-00002',
+      name: '委託テーブル（サンプル）',
+      specification: 'W1400×D800',
+      quantity: 1,
+      costPrice: 0,
+      listPrice: 85000,
+      notes: '委託品テストデータ',
+    },
+    {
+      sku: 'CSG-00003',
+      name: '委託チェア（サンプル）',
+      specification: 'ダイニングチェア',
+      quantity: 2,
+      costPrice: 0,
+      listPrice: 45000,
+      notes: '委託品テストデータ',
+    },
+  ]
+
+  for (const data of consignmentData) {
+    const consignment = await prisma.consignment.create({
+      data: {
+        sku: data.sku,
+        name: data.name,
+        specification: data.specification,
+        quantity: data.quantity,
+        costPrice: data.costPrice,
+        listPrice: data.listPrice,
+        notes: data.notes,
+        locationId: locationMap.get('SRバックヤード') || null,
+        unitId: unitMap.get('台') || null,
+      },
+    })
+    // タグを紐付け
+    await prisma.consignmentTag.create({
+      data: {
+        consignmentId: consignment.id,
+        tagId: tag.id,
+      },
+    })
+  }
+
+  // 委託品SKUカウンターを更新
+  await prisma.systemSetting.update({
+    where: { key: 'next_consignment_sku' },
     data: { value: '4' },
   })
+  console.log('✓ Created 3 sample consignments with tag')
 
-  console.log('✅ All seed data created successfully')
+  console.log('')
+  console.log('✅ Production seed completed successfully!')
+  console.log('')
+  console.log('Summary:')
+  console.log(`  - Admin user: admin / password123`)
+  console.log(`  - Products: ${productCount}`)
+  console.log(`  - Consignments: 3 (test data)`)
+  console.log(`  - Manufacturers: ${manufacturerNames.size}`)
+  console.log(`  - Categories: ${categoryNames.size}`)
+  console.log(`  - Locations: ${locationNames.size}`)
+  console.log(`  - Units: ${unitNames.size}`)
+  console.log(`  - Tags: 1 (玉家建設用)`)
 }
 
 main()
