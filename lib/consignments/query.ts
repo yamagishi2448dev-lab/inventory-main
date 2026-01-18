@@ -63,8 +63,9 @@ export function buildConsignmentWhereClause(
   }
 
   // 販売済みフィルター（デフォルトは販売済みを除外）
+  // isSoldがnullの場合も「販売済みでない」として扱う
   if (!filters.includeSold) {
-    where.isSold = false
+    where.isSold = { not: true }
   }
 
   // v2.2: タグフィルター（OR条件）
