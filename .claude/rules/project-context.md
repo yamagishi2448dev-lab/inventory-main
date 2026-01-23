@@ -47,6 +47,8 @@
 - 初期データ: 管理者ユーザー1名必須、開発用サンプル10件程度
 
 ## Deployment / CI
-- 環境変数: `DATABASE_URL`, `SESSION_SECRET`, `NEXT_PUBLIC_APP_URL`
+- 環境変数（必須）: `DATABASE_URL`, `DIRECT_URL`, `SESSION_SECRET`, `NEXT_PUBLIC_APP_URL`
+- 環境変数（画像保存用）: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- 開発用オプション: `DEV_AUTO_SEED_ADMIN`, `DEV_ADMIN_USERNAME`, `DEV_ADMIN_PASSWORD`
 - `main`へのpushで自動デプロイ、PRはプレビューデプロイ
 - デプロイ前のビルド/テスト実行は推奨

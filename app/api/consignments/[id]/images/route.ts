@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { authenticateRequest } from '@/lib/auth/middleware'
 import { z } from 'zod'
+import { deleteFromCloudinary } from '@/lib/cloudinary'
 
 // 画像追加スキーマ
 const addImageSchema = z.object({
@@ -168,9 +169,31 @@ export async function DELETE(
       )
     }
 
+    // 画像を取得
+    const image = await prisma.consignmentImage.findUnique({
+      where: { id: imageId },
+    })
+
+    if (!image) {
+      return NextResponse.json(
+        { error: '画像が見つかりません' },
+        { status: 404 }
+      )
+    }
+
+    // データベースから削除
     await prisma.consignmentImage.delete({
       where: { id: imageId },
     })
+
+    // Cloudinary画像を削除
+    if (image.url.includes('cloudinary.com')) {
+      try {
+        await deleteFromCloudinary(image.url)
+      } catch (err) {
+        console.error('Cloudinary画像の削除に失敗しました:', err)
+      }
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

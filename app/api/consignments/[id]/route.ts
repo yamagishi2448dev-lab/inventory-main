@@ -4,6 +4,7 @@ import { consignmentUpdateSchema } from '@/lib/validations/consignment'
 import { z } from 'zod'
 import { authenticateRequest } from '@/lib/auth/middleware'
 import { createChangeLog, compareChanges, PRODUCT_FIELD_LABELS } from '@/lib/changelog'
+import { deleteFromCloudinary } from '@/lib/cloudinary'
 
 // GET /api/consignments/:id - 委託品詳細取得
 export async function GET(
@@ -258,9 +259,12 @@ export async function DELETE(
 
   try {
     const params = await context.params
-    // 委託品の存在確認
+    // 委託品の存在確認（画像も取得）
     const existingConsignment = await prisma.consignment.findUnique({
       where: { id: params.id },
+      include: {
+        images: true,
+      },
     })
 
     if (!existingConsignment) {
@@ -283,7 +287,18 @@ export async function DELETE(
       })
     }
 
-    // 委託品削除（Cascadeで関連する画像も自動削除）
+    // Cloudinary画像を削除
+    for (const image of existingConsignment.images) {
+      if (image.url.includes('cloudinary.com')) {
+        try {
+          await deleteFromCloudinary(image.url)
+        } catch (err) {
+          console.error('Cloudinary画像の削除に失敗しました:', err)
+        }
+      }
+    }
+
+    // 委託品削除（Cascadeで関連するDB画像レコードも自動削除）
     await prisma.consignment.delete({
       where: { id: params.id },
     })

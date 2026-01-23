@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import path from 'path'
 import {
-  uploadToGoogleDrive,
-  isGoogleDriveConfigured,
-} from '@/lib/google-drive'
+  uploadToCloudinary,
+  isCloudinaryConfigured,
+} from '@/lib/cloudinary'
 
 // 許可される画像形式
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -12,12 +12,12 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function POST(request: NextRequest) {
   try {
-    // Google Drive設定の確認
-    if (!isGoogleDriveConfigured()) {
+    // Cloudinary設定の確認
+    if (!isCloudinaryConfigured()) {
       return NextResponse.json(
         {
           error:
-            'Google Driveが設定されていません。環境変数を確認してください。',
+            'Cloudinaryが設定されていません。環境変数を確認してください。',
         },
         { status: 500 }
       )
@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
     const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '')
     const filename = `${timestamp}_${randomString}${ext}`
 
-    // Google Driveにアップロード
-    const url = await uploadToGoogleDrive(buffer, filename, file.type)
+    // Cloudinaryにアップロード
+    const url = await uploadToCloudinary(buffer, filename)
 
     return NextResponse.json({
       success: true,

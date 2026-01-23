@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { unlink } from 'fs/promises'
 import path from 'path'
+import { deleteFromCloudinary } from '@/lib/cloudinary'
 
 export async function DELETE(
   request: NextRequest,
@@ -36,15 +37,21 @@ export async function DELETE(
       where: { id: imageId },
     })
 
-    // ファイルシステムから削除（開発環境のみ）
-    // 本番環境ではクラウドストレージのAPIを使用する
+    // ストレージから画像を削除
     if (image.url.startsWith('/uploads/')) {
+      // ローカルファイルの削除（開発環境）
       try {
         const filepath = path.join(process.cwd(), 'public', image.url)
         await unlink(filepath)
       } catch (err) {
         console.error('ファイルの削除に失敗しました:', err)
-        // ファイル削除に失敗してもDBからは削除されているのでエラーにしない
+      }
+    } else if (image.url.includes('cloudinary.com')) {
+      // Cloudinary画像の削除
+      try {
+        await deleteFromCloudinary(image.url)
+      } catch (err) {
+        console.error('Cloudinary画像の削除に失敗しました:', err)
       }
     }
 

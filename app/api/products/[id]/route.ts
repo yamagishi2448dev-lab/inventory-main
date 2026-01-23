@@ -4,6 +4,7 @@ import { productUpdateSchemaV2 } from '@/lib/validations/product'
 import { z } from 'zod'
 import { authenticateRequest } from '@/lib/auth/middleware'
 import { createChangeLog, compareChanges, PRODUCT_FIELD_LABELS } from '@/lib/changelog'  // v2.1追加
+import { deleteFromCloudinary } from '@/lib/cloudinary'
 
 // GET /api/products/:id - 商品詳細取得（v2.0）
 export async function GET(
@@ -258,9 +259,12 @@ export async function DELETE(
 
   try {
     const params = await context.params
-    // 商品の存在確認
+    // 商品の存在確認（画像も取得）
     const existingProduct = await prisma.product.findUnique({
       where: { id: params.id },
+      include: {
+        images: true,
+      },
     })
 
     if (!existingProduct) {
@@ -283,7 +287,18 @@ export async function DELETE(
       })
     }
 
-    // 商品削除（Cascadeで関連する画像も自動削除）
+    // Cloudinary画像を削除
+    for (const image of existingProduct.images) {
+      if (image.url.includes('cloudinary.com')) {
+        try {
+          await deleteFromCloudinary(image.url)
+        } catch (err) {
+          console.error('Cloudinary画像の削除に失敗しました:', err)
+        }
+      }
+    }
+
+    // 商品削除（Cascadeで関連するDB画像レコードも自動削除）
     await prisma.product.delete({
       where: { id: params.id },
     })

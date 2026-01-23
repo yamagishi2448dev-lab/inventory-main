@@ -19,7 +19,7 @@
 
 ## 1. 概要
 - 対象: 個人・小規模ビジネス（2-10名）の在庫管理
-- 目的: 商品マスタを中心に、品目・メーカー・場所・単位・画像を一元管理
+- 目的: 商品マスタを中心に、品目・メーカー・場所・単位・タグ・画像を一元管理
 - スタイル: シンプル、直感的、将来拡張可能
 
 ## 2. 主要ロール
@@ -33,38 +33,49 @@
 - パスワード: bcryptでハッシュ化
 - APIレスポンス: JSON + `Content-Type: application/json; charset=utf-8`
 - DB: PostgreSQL（開発環境も含めSQLiteは使用禁止）
+- 画像保存: Cloudinary（本番環境）
 - デプロイ: Vercel
 
-## 4. データモデル（v2.1 現行）
-> 旧呼称: Supplier → Manufacturer, Category → 品目, Tag → Location
+## 4. データモデル（v2.2 現行）
+> 旧呼称: Supplier → Manufacturer, Category → 品目, Tag（v1）→ Location
 
 ### 4.1 Product
 - `sku` 自動採番（`SKU-00001` 形式、編集不可）
 - 主な項目: name, manufacturerId, categoryId, specification, fabricColor, quantity, unitId,
-  costPrice, listPrice, arrivalDate, locationId, notes, images[], materials[]
+  costPrice, listPrice, arrivalDate, locationId, notes, images[], materials[], tags[]
 - 追加項目: size, isSold, soldAt
 
 ### 4.2 Consignment（委託品）
 - `sku` 自動採番（`CSG-00001` 形式、編集不可）
 - Productと同等の構造、原価単価は常に0
-- images[], materials[], isSold, soldAt を含む
+- images[], materials[], tags[], isSold, soldAt を含む
 
 ### 4.3 Material
 - MaterialType: name, order
 - ProductMaterial / ConsignmentMaterial: materialTypeId, description, imageUrl, order
 
-### 4.4 Master Data
+### 4.4 Tag（v2.2 追加）
+- Tag: id, name, createdAt, updatedAt
+- ProductTag: productId, tagId（多対多中間テーブル）
+- ConsignmentTag: consignmentId, tagId（多対多中間テーブル）
+- 商品・委託品に複数タグを付与可能
+- タグによるフィルタリング（OR条件）
+
+### 4.5 Master Data
 - Manufacturer（メーカー）: name
 - Category（品目）: name
 - Location（場所）: name
 - Unit（単位）: name
 
-### 4.5 System
+### 4.6 System
 - ChangeLog: entityType, entityId, action, changes, user, createdAt
 - SystemSetting: key, value（運用ルール）
 
 ## 5. 機能要件（要約）
 - 認証/ユーザー管理、商品/委託品管理、素材項目管理、変更履歴、運用ルール、マスタ管理、ダッシュボード、印刷レイアウト
+- タグ管理: 商品・委託品への複数タグ付与、タグによるフィルタリング
+- CSVインポート/エクスポート: 商品・委託品の一括データ入出力（タグ対応）
+- 一括操作: 複数商品/委託品の一括編集・削除
 - 詳細は `./rules/functional-requirements.md`
 
 ## 6. API共通仕様（要約）
@@ -76,10 +87,19 @@
 - 対応ブラウザ: 最新Chrome/Firefox/Safari/Edge
 - レスポンシブ: スマホ対応（印刷は非対応）
 
+## 8. 環境変数
+- `DATABASE_URL`: PostgreSQL接続URL（Transaction pooler）
+- `DIRECT_URL`: PostgreSQL直接接続URL（マイグレーション用）
+- `SESSION_SECRET`: セッション暗号化キー
+- `NEXT_PUBLIC_APP_URL`: アプリケーションURL
+- `CLOUDINARY_CLOUD_NAME`: Cloudinaryクラウド名（画像保存用）
+- `CLOUDINARY_API_KEY`: Cloudinary APIキー（画像保存用）
+- `CLOUDINARY_API_SECRET`: Cloudinary APIシークレット（画像保存用）
+
 ---
 
-**最終更新日**: 2026-01-07
-**バージョン**: 2.1.0
+**最終更新日**: 2026-01-21
+**バージョン**: 2.2.0
 
 ---
 
