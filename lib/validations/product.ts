@@ -185,6 +185,17 @@ export const productSchemaV2 = z.object({
     .array(z.string().cuid('無効なタグIDです'))
     .optional()
     .default([]),
+
+  // 画像の配列（v2.2追加）
+  images: z
+    .array(
+      z.object({
+        url: z.string().url('無効なURLです'),
+        order: z.number().int().min(0),
+      })
+    )
+    .optional()
+    .default([]),
 })
 
 // 商品作成用の型（v2.0）

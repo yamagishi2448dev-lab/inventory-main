@@ -151,6 +151,40 @@ export async function PUT(
       }
     }
 
+    // v2.2追加: 画像の更新（既存を削除してから新規作成）
+    if (validatedData.images !== undefined) {
+      // 既存の画像を取得
+      const existingImages = await prisma.productImage.findMany({
+        where: { productId: params.id },
+      })
+
+      // 既存の画像をCloudinaryから削除
+      for (const image of existingImages) {
+        try {
+          await deleteFromCloudinary(image.url)
+        } catch (error) {
+          console.error('Cloudinary画像削除エラー:', error)
+          // エラーが発生しても処理を続行
+        }
+      }
+
+      // 既存の画像をDBから削除
+      await prisma.productImage.deleteMany({
+        where: { productId: params.id },
+      })
+
+      // 新しい画像を作成
+      if (validatedData.images.length > 0) {
+        await prisma.productImage.createMany({
+          data: validatedData.images.map((image) => ({
+            productId: params.id,
+            url: image.url,
+            order: image.order,
+          })),
+        })
+      }
+    }
+
     // 商品更新（v2.2）- SKUは編集不可
     const product = await prisma.product.update({
       where: { id: params.id },

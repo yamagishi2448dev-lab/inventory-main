@@ -179,6 +179,15 @@ export async function POST(request: NextRequest) {
               })),
             }
           : undefined,
+        // v2.2追加: 画像の保存
+        images: validatedData.images && validatedData.images.length > 0
+          ? {
+              create: validatedData.images.map((image) => ({
+                url: image.url,
+                order: image.order,
+              })),
+            }
+          : undefined,
       },
       include: {
         category: true,
