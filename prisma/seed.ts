@@ -60,7 +60,7 @@ async function main() {
   console.log('✓ Created admin user: username=admin, password=password123')
 
   // 2. CSVファイルを読み込み
-  const csvPath = path.join(process.cwd(), '2025.11.csv')
+  const csvPath = path.join(process.cwd(), '2025.12.csv')
   const csvContent = fs.readFileSync(csvPath, 'utf-8')
   const records = parse(csvContent, {
     columns: true,
@@ -68,7 +68,14 @@ async function main() {
     bom: true,
     relax_column_count: true,
   }) as Record<string, string>[]
-  console.log(`✓ Loaded ${records.length} records from CSV`)
+
+  // 空行をフィルタリング（メーカー名が空の行を除外）
+  const validRecords = records.filter(record => {
+    const manufacturer = record['メーカー']?.trim()
+    return manufacturer && manufacturer.length > 0
+  })
+
+  console.log(`✓ Loaded ${validRecords.length} valid records from CSV (${records.length} total rows)`)
 
   // 3. ユニークなマスタデータを抽出
   const manufacturerNames = new Set<string>()
@@ -76,7 +83,7 @@ async function main() {
   const locationNames = new Set<string>()
   const unitNames = new Set<string>()
 
-  for (const record of records) {
+  for (const record of validRecords) {
     const manufacturer = record['メーカー']?.trim()
     const category = record['品目']?.trim()
     const location = record['場所']?.trim()
@@ -138,7 +145,7 @@ async function main() {
   let skuCounter = 1
   let productCount = 0
 
-  for (const record of records) {
+  for (const record of validRecords) {
     const name = record['商品名']?.trim()
     if (!name) continue // 商品名がない行はスキップ
 
@@ -181,7 +188,7 @@ async function main() {
     where: { key: 'next_product_sku' },
     data: { value: String(skuCounter) },
   })
-  console.log(`✓ Created ${productCount} products`)
+  console.log(`✓ Created ${productCount} products (from ${validRecords.length} valid records)`)
 
   // 11. 委託品テストデータ3件作成
   const consignmentData = [
@@ -249,7 +256,7 @@ async function main() {
   console.log('')
   console.log('Summary:')
   console.log(`  - Admin user: admin / password123`)
-  console.log(`  - Products: ${productCount}`)
+  console.log(`  - Products: ${productCount} (from ${validRecords.length} CSV records)`)
   console.log(`  - Consignments: 3 (test data)`)
   console.log(`  - Manufacturers: ${manufacturerNames.size}`)
   console.log(`  - Categories: ${categoryNames.size}`)
