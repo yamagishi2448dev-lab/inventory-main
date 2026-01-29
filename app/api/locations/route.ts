@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { z } from 'zod'
 import { authenticateRequest } from '@/lib/auth/middleware'
-import { masterDataResponse } from '@/lib/api/response'
 
 // 場所バリデーションスキーマ (v2.0)
 const locationSchema = z.object({
@@ -31,7 +30,7 @@ export async function GET() {
             },
         })
 
-        return masterDataResponse({ locations })
+        return NextResponse.json({ locations })
     } catch (error) {
         console.error('場所一覧取得エラー:', error)
         return NextResponse.json(

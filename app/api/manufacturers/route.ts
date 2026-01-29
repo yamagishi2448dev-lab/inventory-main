@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { z } from 'zod'
 import { authenticateRequest } from '@/lib/auth/middleware'
-import { masterDataResponse } from '@/lib/api/response'
 
 // メーカーバリデーションスキーマ (v2.0)
 const manufacturerSchema = z.object({
@@ -32,7 +31,7 @@ export async function GET() {
             },
         })
 
-        return masterDataResponse({ manufacturers })
+        return NextResponse.json({ manufacturers })
     } catch (error) {
         console.error('メーカー一覧取得エラー:', error)
         return NextResponse.json(
