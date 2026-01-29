@@ -1,6 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth/session'
-import { prisma } from '@/lib/db/prisma'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +12,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // セッション検証
+    // 繧ｻ繝・す繝ｧ繝ｳ讀懆ｨｼ
     const session = await getSession(token)
     if (!session) {
       return NextResponse.json(
@@ -22,10 +21,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // ユーザー情報取得
-    const user = await prisma.user.findUnique({
-      where: { id: session.userId },
-    })
+    const user = session.user
 
     if (!user) {
       return NextResponse.json(
@@ -53,3 +49,5 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+

@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth/session'
-import { prisma } from '@/lib/db/prisma'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { SidebarProvider } from '@/lib/contexts/SidebarContext'
@@ -24,13 +23,7 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: {
-      username: true,
-      role: true,
-    },
-  })
+  const user = session.user
 
   if (!user) {
     redirect('/login')

@@ -32,11 +32,7 @@ export default function LoginPage() {
       const data = await response.json()
 
       if (data.success) {
-        // Add a small delay for smooth transition feel
-        setTimeout(() => {
-          router.push('/dashboard')
-          router.refresh()
-        }, 500)
+        router.replace('/dashboard')
       } else {
         setError(data.error || 'ログインに失敗しました')
         setIsLoading(false)

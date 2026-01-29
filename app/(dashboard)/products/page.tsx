@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,12 +34,27 @@ import { useFilters } from '@/lib/hooks/useFilters'
 import { formatPrice } from '@/lib/utils'
 import { DEFAULT_PAGE_SIZE, PRINT_SELECTION_STORAGE_KEY, PRODUCT_SELECTION_STORAGE_KEY } from '@/lib/constants'
 import type { ProductWithRelations, PaginationData, QuantityMode, ProductSortField, ProductSortOrder } from '@/lib/types'
-import { LayoutGrid, List, Download, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Search, X, Printer, Eye, Upload, MoreHorizontal } from 'lucide-react'
-import { ProductGridView } from '@/components/products/ProductGridView'
-import { BulkActionsBar } from '@/components/products/BulkActionsBar'
-import { BulkEditDialog } from '@/components/products/BulkEditDialog'
+import { LayoutGrid, List, Download, RotateCcw, Filter, Search, X, Printer, Eye, Upload, MoreHorizontal } from 'lucide-react'
+import { SortableHeader } from '@/components/shared/SortableHeader'
+import { FilterDropdown } from '@/components/shared/FilterDropdown'
+import { TagFilterDropdown } from '@/components/shared/TagFilterDropdown'
 
-// ソートフィールドの型
+// 蜍慕噪繧､繝ｳ繝昴・繝茨ｼ亥・譛溘ヰ繝ｳ繝峨Ν繧ｵ繧､繧ｺ蜑頑ｸ幢ｼ・
+const ProductGridView = dynamic(() => import('@/components/products/ProductGridView').then(mod => ({ default: mod.ProductGridView })), {
+  loading: () => <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-96" />)}
+  </div>,
+})
+
+const BulkActionsBar = dynamic(() => import('@/components/products/BulkActionsBar').then(mod => ({ default: mod.BulkActionsBar })), {
+  ssr: false,
+})
+
+const BulkEditDialog = dynamic(() => import('@/components/products/BulkEditDialog').then(mod => ({ default: mod.BulkEditDialog })), {
+  ssr: false,
+})
+
+// 繧ｽ繝ｼ繝医ヵ繧｣繝ｼ繝ｫ繝峨・蝙・
 type SortField = Exclude<ProductSortField, 'createdAt'>
 type SortOrder = ProductSortOrder
 
@@ -53,7 +69,7 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // 選択状態管理
+  // 驕ｸ謚樒憾諷狗ｮ｡逅・
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set())
   const [selectAllLoading, setSelectAllLoading] = useState(false)
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
@@ -62,27 +78,27 @@ export default function ProductsPage() {
   const [importing, setImporting] = useState(false)
   const importInputRef = useRef<HTMLInputElement | null>(null)
 
-  // URLパラメータでフィルター状態を管理
+  // URL繝代Λ繝｡繝ｼ繧ｿ縺ｧ繝輔ぅ繝ｫ繧ｿ繝ｼ迥ｶ諷九ｒ邂｡逅・
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
 
-  // ビューモード状態 (list | grid)
+  // 繝薙Η繝ｼ繝｢繝ｼ繝臥憾諷・(list | grid)
   const viewParam = searchParams.get('view')
   const resolvedViewMode: 'list' | 'grid' = viewParam === 'grid' ? 'grid' : 'list'
   const [viewMode, setViewMode] = useState<'list' | 'grid'>(resolvedViewMode)
 
-  // URLからフィルター値を取得
+  // URL縺九ｉ繝輔ぅ繝ｫ繧ｿ繝ｼ蛟､繧貞叙蠕・
   const search = searchParams.get('search') || ''
   const categoryId = searchParams.get('categoryId') || ''
   const manufacturerId = searchParams.get('manufacturerId') || ''
   const locationId = searchParams.get('locationId') || ''
-  // v2.2追加: useMemoでメモ化して無限ループを防ぐ
+  // v2.2霑ｽ蜉: useMemo縺ｧ繝｡繝｢蛹悶＠縺ｦ辟｡髯舌Ν繝ｼ繝励ｒ髦ｲ縺・
   const tagIds = useMemo(
     () => searchParams.get('tagIds')?.split(',').filter(Boolean) || [],
     [searchParams]
   )
-  const includeSold = searchParams.get('includeSold') === 'true'  // v2.1追加
+  const includeSold = searchParams.get('includeSold') === 'true'  // v2.1霑ｽ蜉
   const sortBy = (searchParams.get('sortBy') || '') as SortField | ''
   const sortOrder = (searchParams.get('sortOrder') || '') as SortOrder | ''
   const currentPage = Number(searchParams.get('page')) || 1
@@ -95,16 +111,16 @@ export default function ProductsPage() {
     setViewMode(resolvedViewMode)
   }, [resolvedViewMode])
 
-  // searchInputはデバウンス用に維持
+  // searchInput縺ｯ繝・ヰ繧ｦ繝ｳ繧ｹ逕ｨ縺ｫ邯ｭ謖・
   const [searchInput, setSearchInput] = useState(search)
 
-  // 選択肢用のデータ（v2.2カスタムフックを使用）
+  // 驕ｸ謚櫁い逕ｨ縺ｮ繝・・繧ｿ・・2.2繧ｫ繧ｹ繧ｿ繝繝輔ャ繧ｯ繧剃ｽｿ逕ｨ・・
   const { categories, manufacturers, locations, tags } = useFilters()
 
-  // フィルターがアクティブかどうか
+  // 繝輔ぅ繝ｫ繧ｿ繝ｼ縺後い繧ｯ繝・ぅ繝悶°縺ｩ縺・°
   const hasActiveFilters = !!(search || categoryId || manufacturerId || locationId || tagIds.length > 0 || sortBy || includeSold)
 
-  // URL更新関数
+  // URL譖ｴ譁ｰ髢｢謨ｰ
   const updateFilter = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString())
     if (value) {
@@ -112,30 +128,30 @@ export default function ProductsPage() {
     } else {
       params.delete(key)
     }
-    // フィルター変更時はページを1にリセット
+    // 繝輔ぅ繝ｫ繧ｿ繝ｼ螟画峩譎ゅ・繝壹・繧ｸ繧・縺ｫ繝ｪ繧ｻ繝・ヨ
     if (key !== 'page') {
       params.delete('page')
     }
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }, [searchParams, router, pathname])
 
-  // ソート切り替え関数
+  // 繧ｽ繝ｼ繝亥・繧頑崛縺磯未謨ｰ
   const toggleSort = useCallback((field: SortField) => {
     const params = new URLSearchParams(searchParams.toString())
 
     if (sortBy === field) {
-      // 同じフィールドの場合、順序を切り替え
+      // 蜷後§繝輔ぅ繝ｼ繝ｫ繝峨・蝣ｴ蜷医・・ｺ上ｒ蛻・ｊ譖ｿ縺・
       if (sortOrder === 'asc') {
         params.set('sortOrder', 'desc')
       } else if (sortOrder === 'desc') {
-        // 降順の次はソート解除
+        // 髯埼・・谺｡縺ｯ繧ｽ繝ｼ繝郁ｧ｣髯､
         params.delete('sortBy')
         params.delete('sortOrder')
       } else {
         params.set('sortOrder', 'asc')
       }
     } else {
-      // 新しいフィールドの場合、昇順から開始
+      // 譁ｰ縺励＞繝輔ぅ繝ｼ繝ｫ繝峨・蝣ｴ蜷医∵・鬆・°繧蛾幕蟋・
       params.set('sortBy', field)
       params.set('sortOrder', 'asc')
     }
@@ -143,7 +159,7 @@ export default function ProductsPage() {
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }, [searchParams, router, pathname, sortBy, sortOrder])
 
-  // 検索実行（300msデバウンス）
+  // 讀懃ｴ｢螳溯｡鯉ｼ・00ms繝・ヰ繧ｦ繝ｳ繧ｹ・・
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchInput !== search) {
@@ -153,7 +169,7 @@ export default function ProductsPage() {
     return () => clearTimeout(timer)
   }, [searchInput, search, updateFilter])
 
-  // URLのsearch変更時にsearchInputを同期
+  // URL縺ｮsearch螟画峩譎ゅ↓searchInput繧貞酔譛・
   useEffect(() => {
     setSearchInput(search)
   }, [search])
@@ -170,15 +186,16 @@ export default function ProductsPage() {
       if (categoryId) params.append('categoryId', categoryId)
       if (manufacturerId) params.append('manufacturerId', manufacturerId)
       if (locationId) params.append('locationId', locationId)
-      if (tagIds.length > 0) params.append('tagIds', tagIds.join(','))  // v2.2追加
-      if (includeSold) params.append('includeSold', 'true')  // v2.1追加
+      if (tagIds.length > 0) params.append('tagIds', tagIds.join(','))  // v2.2霑ｽ蜉
+      if (includeSold) params.append('includeSold', 'true')  // v2.1霑ｽ蜉
       if (sortBy) params.append('sortBy', sortBy)
       if (sortOrder) params.append('sortOrder', sortOrder)
+      params.append('view', resolvedViewMode)
 
       const response = await fetch(`/api/products?${params.toString()}`)
 
       if (!response.ok) {
-        throw new Error('商品一覧の取得に失敗しました')
+        throw new Error('蝠・刀荳隕ｧ縺ｮ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆')
       }
 
       const data = await response.json()
@@ -186,11 +203,11 @@ export default function ProductsPage() {
       setPagination(data.pagination)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '不明なエラーが発生しました')
+      setError(err instanceof Error ? err.message : '荳肴・縺ｪ繧ｨ繝ｩ繝ｼ縺檎匱逕溘＠縺ｾ縺励◆')
     } finally {
       setLoading(false)
     }
-  }, [search, categoryId, manufacturerId, locationId, tagIds, includeSold, sortBy, sortOrder])
+  }, [search, categoryId, manufacturerId, locationId, tagIds, includeSold, sortBy, sortOrder, resolvedViewMode])
 
   useEffect(() => {
     fetchProducts(currentPage)
@@ -245,22 +262,22 @@ export default function ProductsPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data?.error || 'CSVインポートに失敗しました')
+        throw new Error(data?.error || 'CSV繧､繝ｳ繝昴・繝医↓螟ｱ謨励＠縺ｾ縺励◆')
       }
 
       const errorCount = Array.isArray(data.errors) ? data.errors.length : 0
-      let message = `インポート完了: ${data.imported}件`
+      let message = `繧､繝ｳ繝昴・繝亥ｮ御ｺ・ ${data.imported}莉ｶ`
       if (errorCount > 0) {
         const preview = data.errors
           .slice(0, 3)
-          .map((err: { row: number; message: string }) => `行${err.row}: ${err.message}`)
+          .map((err: { row: number; message: string }) => `陦・{err.row}: ${err.message}`)
           .join('\n')
-        message += `\nエラー: ${errorCount}件\n${preview}`
+        message += `\n繧ｨ繝ｩ繝ｼ: ${errorCount}莉ｶ\n${preview}`
       }
       alert(message)
       await fetchProducts(currentPage)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'CSVインポートに失敗しました')
+      alert(err instanceof Error ? err.message : 'CSV繧､繝ｳ繝昴・繝医↓螟ｱ謨励＠縺ｾ縺励◆')
     } finally {
       setImporting(false)
       event.target.value = ''
@@ -279,7 +296,7 @@ export default function ProductsPage() {
   const hasSelection = selectedProductIds.size > 0
   const isAllFilteredSelected = pagination.total > 0 && selectedProductIds.size === pagination.total
 
-  // チェックボックス関連のハンドラー
+  // 繝√ぉ繝・け繝懊ャ繧ｯ繧ｹ髢｢騾｣縺ｮ繝上Φ繝峨Λ繝ｼ
   const handleSelectAll = () => {
     const newSelection = new Set(selectedProductIds)
 
@@ -311,20 +328,21 @@ export default function ProductsPage() {
       if (categoryId) params.append('categoryId', categoryId)
       if (manufacturerId) params.append('manufacturerId', manufacturerId)
       if (locationId) params.append('locationId', locationId)
-      if (includeSold) params.append('includeSold', 'true')  // v2.1追加
+      if (includeSold) params.append('includeSold', 'true')  // v2.1霑ｽ蜉
       if (sortBy) params.append('sortBy', sortBy)
       if (sortOrder) params.append('sortOrder', sortOrder)
+      params.append('view', resolvedViewMode)
 
       const response = await fetch(`/api/products/ids?${params.toString()}`)
 
       if (!response.ok) {
-        throw new Error('フィルタ結果の一括選択に失敗しました')
+        throw new Error('繝輔ぅ繝ｫ繧ｿ邨先棡縺ｮ荳諡ｬ驕ｸ謚槭↓螟ｱ謨励＠縺ｾ縺励◆')
       }
 
       const data = await response.json()
       setSelectedProductIds(new Set(data.productIds))
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'フィルタ結果の一括選択に失敗しました')
+      alert(err instanceof Error ? err.message : '繝輔ぅ繝ｫ繧ｿ邨先棡縺ｮ荳諡ｬ驕ｸ謚槭↓螟ｱ謨励＠縺ｾ縺励◆')
     } finally {
       setSelectAllLoading(false)
     }
@@ -332,7 +350,7 @@ export default function ProductsPage() {
 
   const handleOpenPrintView = () => {
     if (!hasSelection) {
-      alert('印刷する商品を選択してください')
+      alert('蜊ｰ蛻ｷ縺吶ｋ蝠・刀繧帝∈謚槭＠縺ｦ縺上□縺輔＞')
       return
     }
 
@@ -346,7 +364,7 @@ export default function ProductsPage() {
       sessionStorage.setItem(PRINT_SELECTION_STORAGE_KEY, JSON.stringify(payload))
       router.push('/products/print')
     } catch (err) {
-      alert('印刷画面の準備に失敗しました')
+      alert('蜊ｰ蛻ｷ逕ｻ髱｢縺ｮ貅門ｙ縺ｫ螟ｱ謨励＠縺ｾ縺励◆')
     }
   }
 
@@ -355,7 +373,7 @@ export default function ProductsPage() {
     sessionStorage.removeItem(PRODUCT_SELECTION_STORAGE_KEY)
   }, [])
 
-  // 一括削除
+  // 荳諡ｬ蜑企勁
   const handleBulkDelete = async () => {
     if (selectedProductIds.size === 0) return
 
@@ -372,7 +390,7 @@ export default function ProductsPage() {
       })
 
       if (!response.ok) {
-        throw new Error('一括削除に失敗しました')
+        throw new Error('荳諡ｬ蜑企勁縺ｫ螟ｱ謨励＠縺ｾ縺励◆')
       }
 
       const data = await response.json()
@@ -381,13 +399,13 @@ export default function ProductsPage() {
       setBulkDeleteOpen(false)
       fetchProducts(pagination.page)
     } catch (err) {
-      alert(err instanceof Error ? err.message : '一括削除に失敗しました')
+      alert(err instanceof Error ? err.message : '荳諡ｬ蜑企勁縺ｫ螟ｱ謨励＠縺ｾ縺励◆')
     } finally {
       setBulkOperationLoading(false)
     }
   }
 
-  // 一括編集
+  // 荳諡ｬ邱ｨ髮・
   const handleBulkEdit = async (updates: {
     locationId?: string
     manufacturerId?: string
@@ -414,7 +432,7 @@ export default function ProductsPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || '一括編集に失敗しました')
+        throw new Error(error.error || '荳諡ｬ邱ｨ髮・↓螟ｱ謨励＠縺ｾ縺励◆')
       }
 
       const data = await response.json()
@@ -423,7 +441,7 @@ export default function ProductsPage() {
       setBulkEditOpen(false)
       fetchProducts(pagination.page)
     } catch (err) {
-      alert(err instanceof Error ? err.message : '一括編集に失敗しました')
+      alert(err instanceof Error ? err.message : '荳諡ｬ邱ｨ髮・↓螟ｱ謨励＠縺ｾ縺励◆')
     } finally {
       setBulkOperationLoading(false)
     }
@@ -440,173 +458,6 @@ export default function ProductsPage() {
     router.push(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }, [router, pathname, viewMode, handleClearSelection])
 
-  // ソートアイコンを取得
-  const getSortIcon = (field: SortField) => {
-    if (sortBy !== field) {
-      return <ArrowUpDown className="h-3 w-3" />
-    }
-    if (sortOrder === 'asc') {
-      return <ArrowUp className="h-3 w-3" />
-    }
-    return <ArrowDown className="h-3 w-3" />
-  }
-
-  // ソート可能なヘッダーコンポーネント
-  const SortableHeader = ({ field, children, className = '' }: { field: SortField, children: React.ReactNode, className?: string }) => (
-    <div className={`flex items-center gap-1 ${className}`}>
-      <span>{children}</span>
-      <button
-        onClick={() => toggleSort(field)}
-        className={`p-0.5 rounded hover:bg-gray-200 ${sortBy === field ? 'text-blue-600' : 'text-gray-400'}`}
-        title="並び替え"
-      >
-        {getSortIcon(field)}
-      </button>
-    </div>
-  )
-
-  // フィルタードロップダウンコンポーネント（検索機能付き）
-  const FilterDropdown = ({
-    field,
-    options,
-    currentValue,
-    label
-  }: {
-    field: 'categoryId' | 'manufacturerId' | 'locationId'
-    options: { id: string; name: string }[]
-    currentValue: string
-    label: string
-  }) => {
-    const [open, setOpen] = useState(false)
-    const [filterSearch, setFilterSearch] = useState('')
-
-    const filteredOptions = options.filter((option) =>
-      option.name.toLowerCase().includes(filterSearch.toLowerCase())
-    )
-
-    return (
-      <Popover open={open} onOpenChange={(isOpen) => {
-        setOpen(isOpen)
-        if (!isOpen) setFilterSearch('')
-      }}>
-        <PopoverTrigger asChild>
-          <button
-            className={`p-0.5 rounded hover:bg-gray-200 ${currentValue ? 'text-blue-600' : 'text-gray-400'}`}
-            title={`${label}でフィルター`}
-          >
-            <Filter className="h-3 w-3" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-48 p-2" align="start">
-          <div className="space-y-2">
-            <Input
-              placeholder={`${label}を検索...`}
-              value={filterSearch}
-              onChange={(e) => setFilterSearch(e.target.value)}
-              className="h-7 text-xs"
-            />
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              <button
-                onClick={() => {
-                  updateFilter(field, '')
-                  setOpen(false)
-                }}
-                className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${!currentValue ? 'bg-blue-50 text-blue-600' : ''}`}
-              >
-                すべて
-              </button>
-              {filteredOptions.map((option) => (
-                <button
-                  key={option.id}
-                  onClick={() => {
-                    updateFilter(field, option.id)
-                    setOpen(false)
-                  }}
-                  className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${currentValue === option.id ? 'bg-blue-50 text-blue-600' : ''}`}
-                >
-                  {option.name}
-                </button>
-              ))}
-              {filteredOptions.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-2">該当なし</p>
-              )}
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-    )
-  }
-
-  // タグフィルタードロップダウンコンポーネント（複数選択・検索機能付き）
-  const TagFilterDropdown = () => {
-    const [open, setOpen] = useState(false)
-    const [filterSearch, setFilterSearch] = useState('')
-
-    const filteredTags = tags.filter((tag) =>
-      tag.name.toLowerCase().includes(filterSearch.toLowerCase())
-    )
-
-    const toggleTag = (tagId: string) => {
-      const newTagIds = tagIds.includes(tagId)
-        ? tagIds.filter((id) => id !== tagId)
-        : [...tagIds, tagId]
-      updateFilter('tagIds', newTagIds.join(','))
-    }
-
-    const clearTags = () => {
-      updateFilter('tagIds', '')
-      setOpen(false)
-    }
-
-    return (
-      <Popover open={open} onOpenChange={(isOpen) => {
-        setOpen(isOpen)
-        if (!isOpen) setFilterSearch('')
-      }}>
-        <PopoverTrigger asChild>
-          <button
-            className={`p-0.5 rounded hover:bg-gray-200 ${tagIds.length > 0 ? 'text-blue-600' : 'text-gray-400'}`}
-            title="タグでフィルター"
-          >
-            <Filter className="h-3 w-3" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-48 p-2" align="start">
-          <div className="space-y-2">
-            <Input
-              placeholder="タグを検索..."
-              value={filterSearch}
-              onChange={(e) => setFilterSearch(e.target.value)}
-              className="h-7 text-xs"
-            />
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              <button
-                onClick={clearTags}
-                className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${tagIds.length === 0 ? 'bg-blue-50 text-blue-600' : ''}`}
-              >
-                すべて
-              </button>
-              {filteredTags.map((tag) => (
-                <label
-                  key={tag.id}
-                  className="flex items-center gap-2 px-2 py-1 text-xs rounded hover:bg-gray-100 cursor-pointer"
-                >
-                  <Checkbox
-                    checked={tagIds.includes(tag.id)}
-                    onCheckedChange={() => toggleTag(tag.id)}
-                  />
-                  {tag.name}
-                </label>
-              ))}
-              {filteredTags.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-2">該当なし</p>
-              )}
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-    )
-  }
 
   if (error) {
     return (
@@ -618,21 +469,21 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-4">
-      {/* ヘッダー: タイトル、検索、アクションボタン */}
+      {/* 繝倥ャ繝繝ｼ: 繧ｿ繧､繝医Ν縲∵､懃ｴ｢縲√い繧ｯ繧ｷ繝ｧ繝ｳ繝懊ち繝ｳ */}
       <div className="rounded-lg border bg-white/70 p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-1">
             {/* Title removed for breadcrumb */}
-            <p className="text-xs text-gray-500">{pagination.total}件</p>
+            <p className="text-xs text-gray-500">{pagination.total}莉ｶ</p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4 lg:flex-1 lg:justify-center">
-            {/* 検索ボックス */}
+            {/* 讀懃ｴ｢繝懊ャ繧ｯ繧ｹ */}
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="商品名、仕様で検索..."
+                placeholder="蝠・刀蜷阪∽ｻ墓ｧ倥〒讀懃ｴ｢..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="pl-8 w-full h-8 text-xs"
@@ -647,7 +498,7 @@ export default function ProductsPage() {
               )}
             </div>
 
-            {/* 販売済みを含むトグル v2.1追加 */}
+            {/* 雋ｩ螢ｲ貂医∩繧貞性繧繝医げ繝ｫ v2.1霑ｽ蜉 */}
             <div className="flex items-center gap-2 px-2 py-1 border rounded-md bg-white">
               <Checkbox
                 id="include-sold"
@@ -655,11 +506,11 @@ export default function ProductsPage() {
                 onCheckedChange={(checked) => updateFilter('includeSold', checked ? 'true' : '')}
               />
               <label htmlFor="include-sold" className="text-xs cursor-pointer whitespace-nowrap">
-                販売済みを含む
+                雋ｩ螢ｲ貂医∩繧貞性繧
               </label>
             </div>
 
-            {/* フィルターリセットボタン */}
+            {/* 繝輔ぅ繝ｫ繧ｿ繝ｼ繝ｪ繧ｻ繝・ヨ繝懊ち繝ｳ */}
             <Button
               variant="ghost"
               size="sm"
@@ -668,19 +519,19 @@ export default function ProductsPage() {
               className="h-8 text-xs w-full sm:w-auto"
             >
               <RotateCcw className="h-3 w-3 mr-1" />
-              リセット
+              繝ｪ繧ｻ繝・ヨ
             </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {/* ビューモード切替 */}
+            {/* 繝薙Η繝ｼ繝｢繝ｼ繝牙・譖ｿ */}
             <div className="flex items-center border rounded-md p-0.5 bg-white">
               <Button
                 variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-7 w-7 p-0"
                 onClick={() => handleViewModeChange('list')}
-                title="リスト表示"
+                title="繝ｪ繧ｹ繝郁｡ｨ遉ｺ"
               >
                 <List className="h-3.5 w-3.5" />
               </Button>
@@ -689,7 +540,7 @@ export default function ProductsPage() {
                 size="sm"
                 className="h-7 w-7 p-0"
                 onClick={() => handleViewModeChange('grid')}
-                title="写真表示"
+                title="蜀咏悄陦ｨ遉ｺ"
               >
                 <LayoutGrid className="h-3.5 w-3.5" />
               </Button>
@@ -704,12 +555,11 @@ export default function ProductsPage() {
                 disabled={!hasSelection}
               >
                 <Printer className="h-3 w-3 mr-1" />
-                印刷
+                蜊ｰ蛻ｷ
               </Button>
               <a href="/api/products/import/template" download>
                 <Button variant="outline" size="sm" className="h-8 text-xs">
-                  テンプレート
-                </Button>
+                  繝・Φ繝励Ξ繝ｼ繝・                </Button>
               </a>
               <Button
                 variant="outline"
@@ -719,7 +569,7 @@ export default function ProductsPage() {
                 disabled={importing}
               >
                 <Upload className="h-3 w-3 mr-1" />
-                {importing ? '取込中...' : 'インポート'}
+                {importing ? '蜿冶ｾｼ荳ｭ...' : '繧､繝ｳ繝昴・繝・'}
               </Button>
               <a href="/api/products/export" download>
                 <Button variant="outline" size="sm" className="h-8 text-xs">
@@ -733,8 +583,7 @@ export default function ProductsPage() {
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="h-8 text-xs sm:hidden">
                   <MoreHorizontal className="h-3.5 w-3.5 mr-1" />
-                  その他
-                </Button>
+                  縺昴・莉・                </Button>
               </PopoverTrigger>
               <PopoverContent align="end" className="w-44 p-2">
                 <div className="flex flex-col gap-2">
@@ -746,12 +595,11 @@ export default function ProductsPage() {
                     disabled={!hasSelection}
                   >
                     <Printer className="h-3 w-3 mr-1" />
-                    印刷
+                    蜊ｰ蛻ｷ
                   </Button>
                   <a href="/api/products/import/template" download>
                     <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
-                      テンプレート
-                    </Button>
+                      繝・Φ繝励Ξ繝ｼ繝・                    </Button>
                   </a>
                   <Button
                     variant="outline"
@@ -761,7 +609,7 @@ export default function ProductsPage() {
                     disabled={importing}
                   >
                     <Upload className="h-3 w-3 mr-1" />
-                    {importing ? '取込中...' : 'インポート'}
+                    {importing ? '蜿冶ｾｼ荳ｭ...' : '繧､繝ｳ繝昴・繝・'}
                   </Button>
                   <a href="/api/products/export" download>
                     <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
@@ -774,13 +622,13 @@ export default function ProductsPage() {
             </Popover>
 
             <Link href="/products/new">
-              <Button size="sm" className="h-8 text-xs">新規登録</Button>
+              <Button size="sm" className="h-8 text-xs">譁ｰ隕冗匳骭ｲ</Button>
             </Link>
           </div>
         </div>
       </div>
 
-      {/* 一括操作ツールバー */}
+      {/* 荳諡ｬ謫堺ｽ懊ヤ繝ｼ繝ｫ繝舌・ */}
       <BulkActionsBar
         selectedCount={selectedProductIds.size}
         onClearSelection={handleClearSelection}
@@ -798,7 +646,7 @@ export default function ProductsPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-white/70 px-3 py-2 text-xs text-slate-600">
         <span>
-          選択 {selectedProductIds.size} / {pagination.total}件
+          驕ｸ謚・{selectedProductIds.size} / {pagination.total}莉ｶ
         </span>
         <div className="flex items-center gap-2">
           <Button
@@ -809,10 +657,10 @@ export default function ProductsPage() {
             disabled={selectAllLoading || pagination.total === 0 || isAllFilteredSelected}
           >
             {selectAllLoading
-              ? '全件選択中...'
+              ? '蜈ｨ莉ｶ驕ｸ謚樔ｸｭ...'
               : isAllFilteredSelected
-                ? '全件選択済み'
-                : 'フィルタ結果を全件選択'}
+                ? '蜈ｨ莉ｶ驕ｸ謚樊ｸ医∩'
+                : '繝輔ぅ繝ｫ繧ｿ邨先棡繧貞・莉ｶ驕ｸ謚・'}
           </Button>
         </div>
       </div>
@@ -851,82 +699,89 @@ export default function ProductsPage() {
                               : false
                         }
                         onCheckedChange={handleSelectAll}
-                        aria-label="全選択"
+                        aria-label="蜈ｨ驕ｸ謚・"
                       />
                     </TableHead>
                     <TableHead className="py-1.5 px-2">
                       <div className="flex items-center gap-1">
-                        <SortableHeader field="manufacturer">
-                          <span className="text-xs font-medium">メーカー</span>
+                        <SortableHeader field="manufacturer" sortBy={sortBy} sortOrder={sortOrder} onSort={toggleSort}>
+                          <span className="text-xs font-medium">繝｡繝ｼ繧ｫ繝ｼ</span>
                         </SortableHeader>
                         <FilterDropdown
                           field="manufacturerId"
                           options={manufacturers}
                           currentValue={manufacturerId}
-                          label="メーカー"
+                          label="繝｡繝ｼ繧ｫ繝ｼ"
+                          onValueChange={updateFilter}
                         />
                       </div>
                     </TableHead>
                     <TableHead className="py-1.5 px-2">
                       <div className="flex items-center gap-1">
-                        <SortableHeader field="category">
-                          <span className="text-xs font-medium">品目</span>
+                        <SortableHeader field="category" sortBy={sortBy} sortOrder={sortOrder} onSort={toggleSort}>
+                          <span className="text-xs font-medium">蜩∫岼</span>
                         </SortableHeader>
                         <FilterDropdown
                           field="categoryId"
                           options={categories}
                           currentValue={categoryId}
-                          label="品目"
+                          label="蜩∫岼"
+                          onValueChange={updateFilter}
                         />
                       </div>
                     </TableHead>
                     <TableHead className="py-1.5 px-2">
-                      <SortableHeader field="name">
-                        <span className="text-xs font-medium">商品名</span>
+                      <SortableHeader field="name" sortBy={sortBy} sortOrder={sortOrder} onSort={toggleSort}>
+                        <span className="text-xs font-medium">蝠・刀蜷・</span>
                       </SortableHeader>
                     </TableHead>
                     <TableHead className="py-1.5 px-2">
-                      <SortableHeader field="specification">
-                        <span className="text-xs font-medium">仕様</span>
+                      <SortableHeader field="specification" sortBy={sortBy} sortOrder={sortOrder} onSort={toggleSort}>
+                        <span className="text-xs font-medium">莉墓ｧ・</span>
                       </SortableHeader>
                     </TableHead>
                     <TableHead className="py-1.5 px-2">
-                      <span className="text-xs font-medium">サイズ</span>
+                      <span className="text-xs font-medium">繧ｵ繧､繧ｺ</span>
                     </TableHead>
                     <TableHead className="py-1.5 px-2 text-right">
-                      <SortableHeader field="quantity" className="justify-end">
-                        <span className="text-xs font-medium">個数</span>
+                      <SortableHeader field="quantity" sortBy={sortBy} sortOrder={sortOrder} onSort={toggleSort} className="justify-end">
+                        <span className="text-xs font-medium">蛟区焚</span>
                       </SortableHeader>
                     </TableHead>
                     <TableHead className="py-1.5 px-2 text-right">
-                      <SortableHeader field="costPrice" className="justify-end">
-                        <span className="text-xs font-medium">原価単価</span>
+                      <SortableHeader field="costPrice" sortBy={sortBy} sortOrder={sortOrder} onSort={toggleSort} className="justify-end">
+                        <span className="text-xs font-medium">蜴滉ｾ｡蜊倅ｾ｡</span>
                       </SortableHeader>
                     </TableHead>
                     <TableHead className="py-1.5 px-2">
                       <div className="flex items-center gap-1">
-                        <SortableHeader field="location">
-                          <span className="text-xs font-medium">場所</span>
+                        <SortableHeader field="location" sortBy={sortBy} sortOrder={sortOrder} onSort={toggleSort}>
+                          <span className="text-xs font-medium">蝣ｴ謇</span>
                         </SortableHeader>
                         <FilterDropdown
                           field="locationId"
                           options={locations}
                           currentValue={locationId}
-                          label="場所"
+                          label="蝣ｴ謇"
+                          onValueChange={updateFilter}
                         />
                       </div>
                     </TableHead>
-                    {/* v2.2追加: タグ列 */}
+                    {/* v2.2霑ｽ蜉: 繧ｿ繧ｰ蛻・*/}
                     <TableHead className="py-1.5 px-2">
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-medium">タグ</span>
-                        <TagFilterDropdown />
+                        <span className="text-xs font-medium">繧ｿ繧ｰ</span>
+                        <TagFilterDropdown
+                          tags={tags}
+                          selectedTagIds={tagIds}
+                          onTagsChange={(newTagIds) => updateFilter('tagIds', newTagIds.join(','))}
+                        />
                       </div>
                     </TableHead>
-                    {/* v2.1追加: 選択モード時の詳細ボタン列 */}
+                    {/* v2.1霑ｽ蜉: 驕ｸ謚槭Δ繝ｼ繝画凾縺ｮ隧ｳ邏ｰ繝懊ち繝ｳ蛻・*/}
                     {hasSelection && (
                       <TableHead className="w-12 py-1.5 px-2">
-                        <span className="text-xs font-medium">詳細</span>
+                        <span className="text-xs font-medium">隧ｳ邏ｰ</span>
                       </TableHead>
                     )}
                   </TableRow>
@@ -935,13 +790,13 @@ export default function ProductsPage() {
                   {products.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={hasSelection ? 11 : 10} className="text-xs py-4 px-2 text-center text-gray-500">
-                        商品が登録されていません
+                        蝠・刀縺檎匳骭ｲ縺輔ｌ縺ｦ縺・∪縺帙ｓ
                       </TableCell>
                     </TableRow>
                   ) : (
                     products.map((product) => {
                       const isSelected = selectedProductIds.has(product.id)
-                      const isSold = product.isSold  // v2.1追加
+                      const isSold = product.isSold  // v2.1霑ｽ蜉
                       return (
                         <TableRow
                           key={product.id}
@@ -959,7 +814,7 @@ export default function ProductsPage() {
                               <Checkbox
                                 checked={isSelected}
                                 onCheckedChange={() => handleSelectProduct(product.id)}
-                                aria-label={`選択: ${product.name}`}
+                                aria-label={`驕ｸ謚・ ${product.name}`}
                               />
                             </div>
                           </TableCell>
@@ -967,7 +822,7 @@ export default function ProductsPage() {
                           <TableCell className="text-xs py-1 px-2">{product.category?.name || '-'}</TableCell>
                           <TableCell className={`text-xs py-1 px-2 max-w-[180px] truncate ${isSold ? '' : 'font-medium'}`}>
                             {product.name}
-                            {isSold && <span className="ml-1 text-[10px] text-gray-400">(販売済)</span>}
+                            {isSold && <span className="ml-1 text-[10px] text-gray-400">(雋ｩ螢ｲ貂・)</span>}
                           </TableCell>
                           <TableCell className="text-xs py-1 px-2 max-w-[120px] truncate">
                             {product.specification || '-'}
@@ -983,7 +838,7 @@ export default function ProductsPage() {
                             {formatPrice(product.costPrice as string)}
                           </TableCell>
                           <TableCell className="text-xs py-1 px-2">{product.location?.name || '-'}</TableCell>
-                          {/* v2.2追加: タグ列 */}
+                          {/* v2.2霑ｽ蜉: 繧ｿ繧ｰ蛻・*/}
                           <TableCell className="text-xs py-1 px-2">
                             <div className="flex flex-wrap gap-1">
                               {product.tags && product.tags.length > 0 ? (
@@ -997,7 +852,7 @@ export default function ProductsPage() {
                               )}
                             </div>
                           </TableCell>
-                          {/* v2.1追加: 選択モード時の詳細ボタン */}
+                          {/* v2.1霑ｽ蜉: 驕ｸ謚槭Δ繝ｼ繝画凾縺ｮ隧ｳ邏ｰ繝懊ち繝ｳ */}
                           {hasSelection && (
                             <TableCell className="py-1 px-2">
                               <Button
@@ -1030,7 +885,7 @@ export default function ProductsPage() {
             />
           )}
 
-          {/* ページネーション */}
+          {/* 繝壹・繧ｸ繝阪・繧ｷ繝ｧ繝ｳ */}
           {pagination.totalPages > 1 && (
             <div className="flex justify-center items-center space-x-2">
               <Button
@@ -1040,10 +895,10 @@ export default function ProductsPage() {
                 onClick={() => handlePageChange(pagination.page - 1)}
                 disabled={pagination.page === 1}
               >
-                前へ
+                蜑阪∈
               </Button>
               <span className="text-xs">
-                {pagination.page} / {pagination.totalPages} ページ
+                {pagination.page} / {pagination.totalPages} 繝壹・繧ｸ
               </span>
               <Button
                 variant="outline"
@@ -1052,14 +907,14 @@ export default function ProductsPage() {
                 onClick={() => handlePageChange(pagination.page + 1)}
                 disabled={pagination.page === pagination.totalPages}
               >
-                次へ
+                谺｡縺ｸ
               </Button>
             </div>
           )}
         </>
       )}
 
-      {/* 一括編集ダイアログ */}
+      {/* 荳諡ｬ邱ｨ髮・ム繧､繧｢繝ｭ繧ｰ */}
       <BulkEditDialog
         open={bulkEditOpen}
         onOpenChange={setBulkEditOpen}
@@ -1072,16 +927,14 @@ export default function ProductsPage() {
         isLoading={bulkOperationLoading}
       />
 
-      {/* 一括削除確認ダイアログ */}
+      {/* 荳諡ｬ蜑企勁遒ｺ隱阪ム繧､繧｢繝ｭ繧ｰ */}
       <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>商品を一括削除</DialogTitle>
+            <DialogTitle>蝠・刀繧剃ｸ諡ｬ蜑企勁</DialogTitle>
             <DialogDescription>
-              選択した{selectedProductIds.size}件の商品を削除してもよろしいですか？
-              <br />
-              この操作は取り消せません。
-            </DialogDescription>
+              驕ｸ謚槭＠縺毬{selectedProductIds.size}莉ｶ縺ｮ蝠・刀繧貞炎髯､縺励※繧ゅｈ繧阪＠縺・〒縺吶°・・              <br />
+              縺薙・謫堺ｽ懊・蜿悶ｊ豸医○縺ｾ縺帙ｓ縲・            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
@@ -1089,14 +942,14 @@ export default function ProductsPage() {
               onClick={() => setBulkDeleteOpen(false)}
               disabled={bulkOperationLoading}
             >
-              キャンセル
+              繧ｭ繝｣繝ｳ繧ｻ繝ｫ
             </Button>
             <Button
               variant="destructive"
               onClick={handleBulkDelete}
               disabled={bulkOperationLoading}
             >
-              {bulkOperationLoading ? '削除中...' : '削除'}
+              {bulkOperationLoading ? '蜑企勁荳ｭ...' : '蜑企勁'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1104,3 +957,4 @@ export default function ProductsPage() {
     </div>
   )
 }
+

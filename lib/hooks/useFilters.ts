@@ -1,9 +1,9 @@
-'use client'
+﻿'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import useSWR from 'swr'
 import type { Category, Manufacturer, Location, Unit, TagV2 } from '@/lib/types'
 
-/** フィルターデータの状態 v2.2 */
+/** 繝輔ぅ繝ｫ繧ｿ繝ｼ繝・・繧ｿ縺ｮ迥ｶ諷・v2.2 */
 interface FiltersData {
     categories: Category[]
     manufacturers: Manufacturer[]
@@ -12,88 +12,45 @@ interface FiltersData {
     tags: TagV2[]
 }
 
-/** フィルターフックの戻り値 v2.0 */
+/** 繝輔ぅ繝ｫ繧ｿ繝ｼ繝輔ャ繧ｯ縺ｮ謌ｻ繧雁､ v2.0 */
 interface UseFiltersResult extends FiltersData {
     loading: boolean
     error: string | null
     refetch: () => Promise<void>
 }
 
+/** SWR fetcher髢｢謨ｰ */
+const fetcher = (url: string) => fetch(url).then((res) => res.json())
+
 /**
- * 品目・メーカー・場所・単位のデータを取得するカスタムフック (v2.0)
- * 複数のコンポーネントで重複していたフェッチ処理を共通化
+ * 蜩∫岼繝ｻ繝｡繝ｼ繧ｫ繝ｼ繝ｻ蝣ｴ謇繝ｻ蜊倅ｽ阪・繧ｿ繧ｰ縺ｮ繝・・繧ｿ繧貞叙蠕励☆繧九き繧ｹ繧ｿ繝繝輔ャ繧ｯ (v2.2)
+ * SWR縺ｧ繧ｭ繝｣繝・す繝ｳ繧ｰ + 閾ｪ蜍募・讀懆ｨｼ
  */
 export function useFilters(): UseFiltersResult {
-    const [categories, setCategories] = useState<Category[]>([])
-    const [manufacturers, setManufacturers] = useState<Manufacturer[]>([])
-    const [locations, setLocations] = useState<Location[]>([])
-    const [units, setUnits] = useState<Unit[]>([])
-    const [tags, setTags] = useState<TagV2[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-
-    const fetchFilters = useCallback(async () => {
-        try {
-            setLoading(true)
-            setError(null)
-
-            const [categoriesRes, manufacturersRes, locationsRes, unitsRes, tagsRes] = await Promise.all([
-                fetch('/api/categories'),
-                fetch('/api/manufacturers'),
-                fetch('/api/locations'),
-                fetch('/api/units'),
-                fetch('/api/tags'),
-            ])
-
-            if (categoriesRes.ok) {
-                const data = await categoriesRes.json()
-                setCategories(data.categories)
-            }
-
-            if (manufacturersRes.ok) {
-                const data = await manufacturersRes.json()
-                setManufacturers(data.manufacturers)
-            }
-
-            if (locationsRes.ok) {
-                const data = await locationsRes.json()
-                setLocations(data.locations)
-            }
-
-            if (unitsRes.ok) {
-                const data = await unitsRes.json()
-                setUnits(data.units)
-            }
-
-            if (tagsRes.ok) {
-                const data = await tagsRes.json()
-                setTags(data.tags)
-            }
-
-            // いずれかのリクエストが失敗した場合
-            if (!categoriesRes.ok || !manufacturersRes.ok || !locationsRes.ok || !unitsRes.ok || !tagsRes.ok) {
-                console.warn('一部のフィルタデータの取得に失敗しました')
-            }
-        } catch (err) {
-            console.error('フィルタデータの取得に失敗しました:', err)
-            setError('フィルタデータの取得に失敗しました')
-        } finally {
-            setLoading(false)
+    const { data, error, mutate } = useSWR<FiltersData>(
+        '/api/filters',
+        fetcher,
+        {
+            refreshInterval: 300000,
+            dedupingInterval: 60000,
+            revalidateOnFocus: false,
         }
-    }, [])
+    )
 
-    useEffect(() => {
-        fetchFilters()
-    }, [fetchFilters])
+    const loading = !data
+
+    const refetch = async () => {
+        await mutate()
+    }
 
     return {
-        categories,
-        manufacturers,
-        locations,
-        units,
-        tags,
+        categories: data?.categories || [],
+        manufacturers: data?.manufacturers || [],
+        locations: data?.locations || [],
+        units: data?.units || [],
+        tags: data?.tags || [],
         loading,
-        error,
-        refetch: fetchFilters,
+        error: error ? '繝輔ぅ繝ｫ繧ｿ繝・・繧ｿ縺ｮ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆' : null,
+        refetch,
     }
 }
