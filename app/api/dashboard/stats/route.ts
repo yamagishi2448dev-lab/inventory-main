@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { authenticateRequest } from '@/lib/auth/middleware'
+import { statsResponse } from '@/lib/api/response'
 
 // v2.0 ダッシュボード統計API
 export async function GET() {
@@ -25,7 +26,7 @@ export async function GET() {
 
     const totalCost = costResult[0]?.total || 0
 
-    return NextResponse.json({
+    return statsResponse({
       totalProducts,
       totalCategories,
       totalManufacturers,

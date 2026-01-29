@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { categorySchema } from '@/lib/validations/category'
 import { z } from 'zod'
 import { authenticateRequest } from '@/lib/auth/middleware'
+import { masterDataResponse } from '@/lib/api/response'
 
 // GET /api/categories - カテゴリ一覧取得
 export async function GET() {
@@ -24,7 +25,7 @@ export async function GET() {
       },
     })
 
-    return NextResponse.json({ categories })
+    return masterDataResponse({ categories })
   } catch (error) {
     console.error('カテゴリ一覧取得エラー:', error)
     return NextResponse.json(

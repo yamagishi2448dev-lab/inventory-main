@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { z } from 'zod'
 import { authenticateRequest } from '@/lib/auth/middleware'
+import { masterDataResponse } from '@/lib/api/response'
 
 const unitSchema = z.object({
     name: z
@@ -25,7 +26,7 @@ export async function GET() {
             orderBy: { name: 'asc' },
         })
 
-        return NextResponse.json({ units })
+        return masterDataResponse({ units })
     } catch (error) {
         console.error('単位一覧取得エラー:', error)
         return NextResponse.json(

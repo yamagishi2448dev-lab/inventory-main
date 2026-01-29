@@ -51,28 +51,14 @@ export async function authenticateRequest(): Promise<AuthResult> {
             }
         }
 
-        const user = await prisma.user.findUnique({
-            where: { id: session.userId },
-            select: {
-                id: true,
-                username: true,
-                role: true,
-            },
-        })
-
-        if (!user) {
-            return {
-                success: false,
-                response: NextResponse.json(
-                    { error: 'ユーザーが見つかりません' },
-                    { status: 401 }
-                ),
-            }
-        }
-
+        // getSession()は既にuserを含んでいる（include: { user: true }）
         return {
             success: true,
-            user,
+            user: {
+                id: session.user.id,
+                username: session.user.username,
+                role: session.user.role,
+            },
         }
     } catch (error) {
         console.error('認証エラー:', error)

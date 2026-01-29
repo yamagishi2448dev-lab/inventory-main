@@ -1,12 +1,23 @@
 'use client'
 
 import useSWR from 'swr'
+import dynamic from 'next/dynamic'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatPrice } from '@/lib/utils'
-import { CostByManufacturer } from '@/components/dashboard/CostByManufacturer'
-import { OperationRulesCard } from '@/components/dashboard/OperationRulesCard'
-import { RecentChanges } from '@/components/dashboard/RecentChanges'
+
+// 動的インポート（初期バンドルサイズ削減）
+const CostByManufacturer = dynamic(() => import('@/components/dashboard/CostByManufacturer').then(mod => ({ default: mod.CostByManufacturer })), {
+  loading: () => <Card><CardHeader><CardTitle>メーカー別原価合計</CardTitle></CardHeader><CardContent><Skeleton className="h-64" /></CardContent></Card>,
+})
+
+const OperationRulesCard = dynamic(() => import('@/components/dashboard/OperationRulesCard').then(mod => ({ default: mod.OperationRulesCard })), {
+  loading: () => <Card><CardHeader><CardTitle>運用ルール</CardTitle></CardHeader><CardContent><Skeleton className="h-32" /></CardContent></Card>,
+})
+
+const RecentChanges = dynamic(() => import('@/components/dashboard/RecentChanges').then(mod => ({ default: mod.RecentChanges })), {
+  loading: () => <Card><CardHeader><CardTitle>最近の更新</CardTitle></CardHeader><CardContent><Skeleton className="h-96" /></CardContent></Card>,
+})
 
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then((res) => res.json())

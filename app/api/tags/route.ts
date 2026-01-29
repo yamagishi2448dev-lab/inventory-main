@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { tagSchema } from '@/lib/validations/tag'
 import { z } from 'zod'
 import { authenticateRequest } from '@/lib/auth/middleware'
+import { masterDataResponse } from '@/lib/api/response'
 
 // GET /api/tags - タグ一覧取得
 export async function GET() {
@@ -24,7 +25,7 @@ export async function GET() {
       },
     })
 
-    return NextResponse.json({ tags })
+    return masterDataResponse({ tags })
   } catch (error) {
     console.error('タグ一覧取得エラー:', error)
     return NextResponse.json(

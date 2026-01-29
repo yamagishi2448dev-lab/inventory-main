@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -35,8 +36,15 @@ import { formatPrice } from '@/lib/utils'
 import { DEFAULT_PAGE_SIZE, CONSIGNMENT_SELECTION_STORAGE_KEY, CONSIGNMENT_PRINT_SELECTION_STORAGE_KEY } from '@/lib/constants'
 import type { ConsignmentWithRelations, PaginationData, ConsignmentSortField, ConsignmentSortOrder } from '@/lib/types'
 import { LayoutGrid, List, Download, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Filter, Search, X, Printer, Eye, Trash2, Upload, MoreHorizontal } from 'lucide-react'
-import { BulkActionsBar } from '@/components/consignments/BulkActionsBar'
-import { BulkEditDialog } from '@/components/consignments/BulkEditDialog'
+
+// 動的インポート（初期バンドルサイズ削減）
+const BulkActionsBar = dynamic(() => import('@/components/consignments/BulkActionsBar').then(mod => ({ default: mod.BulkActionsBar })), {
+  ssr: false,
+})
+
+const BulkEditDialog = dynamic(() => import('@/components/consignments/BulkEditDialog').then(mod => ({ default: mod.BulkEditDialog })), {
+  ssr: false,
+})
 
 // ソートフィールドの型
 type SortField = Exclude<ConsignmentSortField, 'createdAt'>

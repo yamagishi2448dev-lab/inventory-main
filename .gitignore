@@ -51,5 +51,8 @@ prisma/dev.db-journal
 *.csv
 *.xlsx
 
+# Google Cloud service account keys
+inventory-main-484506-c26b3f419abf.json
+
 .vercel
 .env*.local
