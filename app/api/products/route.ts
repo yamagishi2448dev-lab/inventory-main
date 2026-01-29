@@ -1,18 +1,17 @@
-﻿import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
-import type { Prisma } from '@prisma/client'
 import { productSchemaV2 } from '@/lib/validations/product'
 import { z } from 'zod'
 import { authenticateRequest } from '@/lib/auth/middleware'
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@/lib/constants'
 import { generateSku } from '@/lib/utils/sku'
 import { buildProductOrderBy, buildProductWhereClause } from '@/lib/products/query'
-import { createChangeLog } from '@/lib/changelog'  // v2.1霑ｽ蜉
+import { createChangeLog } from '@/lib/changelog'  // v2.1追加
 import type { ProductFilters } from '@/lib/types'
 
-// GET /api/products - 蝠・刀荳隕ｧ蜿門ｾ暦ｼ・2.0・・
+// GET /api/products - 商品一覧取得（v2.0）
 export async function GET(request: NextRequest) {
-  // 隱崎ｨｼ繝√ぉ繝・け
+  // 認証チェック
   const auth = await authenticateRequest()
   if (!auth.success) {
     return auth.response
@@ -21,16 +20,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
 
-    // 繧ｯ繧ｨ繝ｪ繝代Λ繝｡繝ｼ繧ｿ縺ｮ蜿門ｾ・    
+    // クエリパラメータの取得
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || String(DEFAULT_PAGE_SIZE))
 
-    // 繧ｽ繝ｼ繝医ヱ繝ｩ繝｡繝ｼ繧ｿ縺ｮ蜿門ｾ・    
+    // ソートパラメータの取得
     const sortBy = searchParams.get('sortBy') || undefined
     const sortOrder = searchParams.get('sortOrder') || undefined
-    const view = searchParams.get('view') === 'grid' ? 'grid' : 'list'
 
-    // 繝輔ぅ繝ｫ繧ｿ繝ｼ譚｡莉ｶ縺ｮ蜿門ｾ暦ｼ・2.2・・    
+    // フィルター条件の取得（v2.2）
     const tagIdsParam = searchParams.get('tagIds')
     const filters: ProductFilters = {
       search: searchParams.get('search') || undefined,
@@ -38,90 +36,82 @@ export async function GET(request: NextRequest) {
       manufacturerId: searchParams.get('manufacturerId') || undefined,
       locationId: searchParams.get('locationId') || undefined,
       arrivalDate: searchParams.get('arrivalDate') || undefined,
-      tagIds: tagIdsParam ? tagIdsParam.split(',').filter(id => id) : undefined,  // v2.2霑ｽ蜉
-      includeSold: searchParams.get('includeSold') === 'true',  // v2.1霑ｽ蜉
+      tagIds: tagIdsParam ? tagIdsParam.split(',').filter(id => id) : undefined,  // v2.2追加
+      includeSold: searchParams.get('includeSold') === 'true',  // v2.1追加
     }
 
-    // 繧ｽ繝ｼ繝域擅莉ｶ縺ｮ讒狗ｯ・    
+    // ソート条件の構築
     const orderBy = buildProductOrderBy(sortBy, sortOrder)
 
-    // 繝舌Μ繝・・繧ｷ繝ｧ繝ｳ
+    // バリデーション
     if (page < 1 || limit < 1 || limit > MAX_PAGE_SIZE) {
       return NextResponse.json(
-        { error: '辟｡蜉ｹ縺ｪ繝壹・繧ｸ繝阪・繧ｷ繝ｧ繝ｳ繝代Λ繝｡繝ｼ繧ｿ縺ｧ縺・ '},
+        { error: '無効なページネーションパラメータです' },
         { status: 400 }
       )
     }
 
-    // 讀懃ｴ｢譚｡莉ｶ縺ｮ讒狗ｯ・    
+    // 検索条件の構築
     const where = buildProductWhereClause(filters)
 
-    // 邱丈ｻｶ謨ｰ縺ｮ蜿門ｾ・    
+    // 総件数の取得
     const total = await prisma.product.count({ where })
 
-    const include: Prisma.ProductInclude = {
-      category: {
-        select: {
-          id: true,
-          name: true,
+    // 商品一覧の取得（v2.0）
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
-      },
-      manufacturer: {
-        select: {
-          id: true,
-          name: true,
+        manufacturer: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
-      },
-      location: {
-        select: {
-          id: true,
-          name: true,
+        location: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
-      },
-      unit: {
-        select: {
-          id: true,
-          name: true,
+        unit: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
-      },
-    }
-
-    if (view === 'grid') {
-      include.images = {
-        orderBy: {
-          order: 'asc',
+        images: {
+          orderBy: {
+            order: 'asc',
+          },
+          select: {
+            id: true,
+            url: true,
+            order: true,
+          },
         },
-        take: 1,
-        select: {
-          id: true,
-          url: true,
-          order: true,
-        },
-      }
-    }
-
-    if (view === 'list') {
-      include.tags = {
-        include: {
-          tag: {
-            select: {
-              id: true,
-              name: true,
+        tags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
         },
-      }
-    }
-
-    const products = await prisma.product.findMany({
-      where,
-      include,
+      },
       orderBy,
       skip: (page - 1) * limit,
       take: limit,
     })
 
-    // 蜴滉ｾ｡蜷郁ｨ医ｒ險育ｮ励＠縺ｦ霑ｽ蜉
+    // 原価合計を計算して追加
     const formattedProducts = products.map((product) => ({
       ...product,
       totalCost: product.costPrice.mul(product.quantity).toString(),
@@ -137,17 +127,17 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('蝠・刀荳隕ｧ蜿門ｾ励お繝ｩ繝ｼ:', error)
+    console.error('商品一覧取得エラー:', error)
     return NextResponse.json(
-      { error: '蝠・刀荳隕ｧ縺ｮ蜿門ｾ励↓螟ｱ謨励＠縺ｾ縺励◆' },
+      { error: '商品一覧の取得に失敗しました' },
       { status: 500 }
     )
   }
 }
 
-// POST /api/products - 蝠・刀譁ｰ隕丈ｽ懈・・・2.0 - SKU閾ｪ蜍墓治逡ｪ・・
+// POST /api/products - 商品新規作成（v2.0 - SKU自動採番）
 export async function POST(request: NextRequest) {
-  // 隱崎ｨｼ繝√ぉ繝・け
+  // 認証チェック
   const auth = await authenticateRequest()
   if (!auth.success) {
     return auth.response
@@ -156,13 +146,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // 繝舌Μ繝・・繧ｷ繝ｧ繝ｳ・・2.0繧ｹ繧ｭ繝ｼ繝橸ｼ・    
+    // バリデーション（v2.0スキーマ）
     const validatedData = productSchemaV2.parse(body)
 
-    // SKU閾ｪ蜍墓治逡ｪ
+    // SKU自動採番
     const sku = await generateSku()
 
-    // 蝠・刀菴懈・・・2.2・・    
+    // 商品作成（v2.2）
     const product = await prisma.product.create({
       data: {
         sku,
@@ -170,7 +160,7 @@ export async function POST(request: NextRequest) {
         manufacturerId: validatedData.manufacturerId || null,
         categoryId: validatedData.categoryId || null,
         specification: validatedData.specification || null,
-        size: validatedData.size || null,  // v2.1霑ｽ蜉
+        size: validatedData.size || null,  // v2.1追加
         fabricColor: validatedData.fabricColor || null,
         quantity: validatedData.quantity || 0,
         unitId: validatedData.unitId || null,
@@ -179,9 +169,9 @@ export async function POST(request: NextRequest) {
         arrivalDate: validatedData.arrivalDate || null,
         locationId: validatedData.locationId || null,
         notes: validatedData.notes || null,
-        isSold: validatedData.isSold || false,  // v2.1霑ｽ蜉
-        soldAt: validatedData.soldAt ? new Date(validatedData.soldAt) : null,  // v2.1霑ｽ蜉
-        // v2.2霑ｽ蜉: 繧ｿ繧ｰ縺ｮ髢｢騾｣莉倥￠
+        isSold: validatedData.isSold || false,  // v2.1追加
+        soldAt: validatedData.soldAt ? new Date(validatedData.soldAt) : null,  // v2.1追加
+        // v2.2追加: タグの関連付け
         tags: validatedData.tagIds && validatedData.tagIds.length > 0
           ? {
               create: validatedData.tagIds.map((tagId) => ({
@@ -189,7 +179,7 @@ export async function POST(request: NextRequest) {
               })),
             }
           : undefined,
-        // v2.2霑ｽ蜉: 逕ｻ蜒上・菫晏ｭ・
+        // v2.2追加: 画像の保存
         images: validatedData.images && validatedData.images.length > 0
           ? {
               create: validatedData.images.map((image) => ({
@@ -218,13 +208,13 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // 蜴滉ｾ｡蜷郁ｨ医ｒ霑ｽ蜉
+    // 原価合計を追加
     const formattedProduct = {
       ...product,
       totalCost: product.costPrice.mul(product.quantity).toString(),
     }
 
-    // v2.1霑ｽ蜉: 螟画峩螻･豁ｴ繧定ｨ倬鹸
+    // v2.1追加: 変更履歴を記録
     if (auth.user) {
       await createChangeLog({
         entityType: 'product',
@@ -242,17 +232,17 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('蝠・刀菴懈・繧ｨ繝ｩ繝ｼ:', error)
+    console.error('商品作成エラー:', error)
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: '繝舌Μ繝・・繧ｷ繝ｧ繝ｳ繧ｨ繝ｩ繝ｼ', details: error.issues },
+        { error: 'バリデーションエラー', details: error.issues },
         { status: 400 }
       )
     }
 
     return NextResponse.json(
-      { error: '蝠・刀縺ｮ菴懈・縺ｫ螟ｱ謨励＠縺ｾ縺励◆' },
+      { error: '商品の作成に失敗しました' },
       { status: 500 }
     )
   }
