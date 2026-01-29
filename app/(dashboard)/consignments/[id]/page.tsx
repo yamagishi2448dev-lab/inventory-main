@@ -188,7 +188,7 @@ export default function ConsignmentDetailPage({ params }: { params: Promise<{ id
               販売済み
             </label>
           </div>
-          <Link href={`/consignments/${consignment.id}/edit`}>
+          <Link href={returnQuery ? `/consignments/${consignment.id}/edit?${returnQuery}` : `/consignments/${consignment.id}/edit`}>
             <Button variant="outline">編集</Button>
           </Link>
           <Button variant="outline" onClick={handleDelete}>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,6 +50,9 @@ interface Consignment {
 
 export default function EditConsignmentPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnQuery = searchParams.toString()
+  const backHref = returnQuery ? `/consignments?${returnQuery}` : '/consignments'
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -278,7 +281,7 @@ export default function EditConsignmentPage({ params }: { params: Promise<{ id: 
       }
 
       alert('委託品を更新しました')
-      router.push('/consignments')
+      router.push(backHref)
     } catch (err) {
       setError(err instanceof Error ? err.message : '不明なエラーが発生しました')
     } finally {
@@ -547,7 +550,7 @@ export default function EditConsignmentPage({ params }: { params: Promise<{ id: 
       />
 
       <div className="flex justify-end space-x-4">
-        <Link href="/consignments">
+        <Link href={backHref}>
           <Button type="button" variant="outline" disabled={submitting}>
             キャンセル
           </Button>

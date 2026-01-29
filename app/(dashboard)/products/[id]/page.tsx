@@ -191,7 +191,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               販売済み
             </label>
           </div>
-          <Link href={`/products/${product.id}/edit`}>
+          <Link href={returnQuery ? `/products/${product.id}/edit?${returnQuery}` : `/products/${product.id}/edit`}>
             <Button variant="outline">編集</Button>
           </Link>
           <Button variant="outline" onClick={handleDelete}>

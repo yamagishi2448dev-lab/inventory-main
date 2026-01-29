@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,6 +46,9 @@ interface Product {
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const returnQuery = searchParams.toString()
+  const backHref = returnQuery ? `/products?${returnQuery}` : '/products'
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -215,7 +218,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       }
 
       alert('商品を更新しました')
-      router.push('/products')
+      router.push(backHref)
     } catch (err) {
       setError(err instanceof Error ? err.message : '不明なエラーが発生しました')
     } finally {
@@ -505,7 +508,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       />
 
       <div className="flex justify-end space-x-4">
-        <Link href="/products">
+        <Link href={backHref}>
           <Button type="button" variant="outline" disabled={submitting}>
             キャンセル
           </Button>
