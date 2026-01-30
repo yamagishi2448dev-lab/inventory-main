@@ -8,7 +8,7 @@ test.describe('Login Flow', () => {
   test('should display login form', async ({ page }) => {
     // Check for page title
     await expect(page.locator('text=Inventory')).toBeVisible()
-    await expect(page.locator('text=在庫管理システム')).toBeVisible()
+    await expect(page.locator('text=アカウント情報を入力してログインしてください')).toBeVisible()
 
     // Check for username and password inputs
     await expect(page.locator('input#username')).toBeVisible()
@@ -31,7 +31,8 @@ test.describe('Login Flow', () => {
 
     // Verify we're on the dashboard
     await expect(page).toHaveURL('/dashboard')
-    await expect(page.locator('h1')).toContainText('ダッシュボード')
+    // ダッシュボードの統計カードを確認
+    await expect(page.getByText('原価合計').first()).toBeVisible()
   })
 
   test('should show error message with incorrect credentials', async ({
@@ -83,9 +84,11 @@ test.describe('Logout Flow', () => {
   })
 
   test('should logout successfully', async ({ page }) => {
-    // Find and click logout button
-    const logoutButton = page.locator('text=ログアウト').first()
-    await logoutButton.click()
+    // ユーザーメニューを開く
+    await page.click('button:has-text("admin")')
+
+    // ログアウトボタンをクリック
+    await page.click('text=ログアウト')
 
     // Should be redirected to login page
     await page.waitForURL('/login')
@@ -114,6 +117,7 @@ test.describe('Session Persistence', () => {
 
     // Should still be on dashboard
     await expect(page).toHaveURL('/dashboard')
-    await expect(page.locator('h1')).toContainText('ダッシュボード')
+    // ダッシュボードの統計カードを確認
+    await expect(page.getByText('原価合計').first()).toBeVisible()
   })
 })

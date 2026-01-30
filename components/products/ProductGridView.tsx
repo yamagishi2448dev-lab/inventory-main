@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { ProductWithRelations } from '@/lib/types'
@@ -81,11 +82,13 @@ export function ProductGridView({
                             )}
 
                             {product.images && product.images.length > 0 ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
+                                <Image
                                     src={product.images[0].url}
                                     alt={product.name}
-                                    className="w-full h-full object-cover"
+                                    fill
+                                    className="object-cover"
+                                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                    loading="lazy"
                                 />
                             ) : (
                                 <div className="text-slate-300 flex flex-col items-center">
