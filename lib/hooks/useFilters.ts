@@ -49,7 +49,7 @@ export function useFilters(): UseFiltersResult {
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 300000, // 5分間キャッシュ
+      dedupingInterval: 1800000, // 30分間キャッシュ（パフォーマンス最適化）
     }
   )
 

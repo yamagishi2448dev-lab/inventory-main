@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
               url: true,
               order: true,
             },
+            take: 1,  // 一覧表示用に最初の1件のみ取得（パフォーマンス最適化）
           },
           tags: {
             include: {

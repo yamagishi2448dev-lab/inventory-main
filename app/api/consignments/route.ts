@@ -54,62 +54,63 @@ export async function GET(request: NextRequest) {
     // 検索条件の構築
     const where = buildConsignmentWhereClause(filters)
 
-    // 総件数の取得
-    const total = await prisma.consignment.count({ where })
-
-    // 委託品一覧の取得
-    const consignments = await prisma.consignment.findMany({
-      where,
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
+    // 総件数と委託品一覧を並列取得（パフォーマンス最適化）
+    const [total, consignments] = await Promise.all([
+      prisma.consignment.count({ where }),
+      prisma.consignment.findMany({
+        where,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        manufacturer: {
-          select: {
-            id: true,
-            name: true,
+          manufacturer: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        location: {
-          select: {
-            id: true,
-            name: true,
+          location: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        unit: {
-          select: {
-            id: true,
-            name: true,
+          unit: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        images: {
-          orderBy: {
-            order: 'asc',
+          images: {
+            orderBy: {
+              order: 'asc',
+            },
+            select: {
+              id: true,
+              url: true,
+              order: true,
+            },
+            take: 1,  // 一覧表示用に最初の1件のみ取得（パフォーマンス最適化）
           },
-          select: {
-            id: true,
-            url: true,
-            order: true,
-          },
-        },
-        tags: {
-          include: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
+          tags: {
+            include: {
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy,
-      skip: (page - 1) * limit,
-      take: limit,
-    })
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
 
     // 原価合計を計算して追加（委託品は常に0だが一貫性のため）
     const formattedConsignments = consignments.map((consignment) => ({

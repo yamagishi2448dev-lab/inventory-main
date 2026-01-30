@@ -14,12 +14,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
 
+    // タグフィルター対応（v2.2追加）
+    const tagIdsParam = searchParams.get('tagIds')
     const filters: ProductFilters = {
       search: searchParams.get('search') || undefined,
       categoryId: searchParams.get('categoryId') || undefined,
       manufacturerId: searchParams.get('manufacturerId') || undefined,
       locationId: searchParams.get('locationId') || undefined,
       arrivalDate: searchParams.get('arrivalDate') || undefined,
+      tagIds: tagIdsParam ? tagIdsParam.split(',').filter(id => id) : undefined,  // v2.2追加
       includeSold: searchParams.get('includeSold') === 'true',  // v2.1追加
     }
 
