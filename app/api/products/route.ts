@@ -54,62 +54,62 @@ export async function GET(request: NextRequest) {
     // 検索条件の構築
     const where = buildProductWhereClause(filters)
 
-    // 総件数の取得
-    const total = await prisma.product.count({ where })
-
-    // 商品一覧の取得（v2.0）
-    const products = await prisma.product.findMany({
-      where,
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
+    // 総件数と商品一覧を並列取得（パフォーマンス最適化）
+    const [total, products] = await Promise.all([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        where,
+        include: {
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        manufacturer: {
-          select: {
-            id: true,
-            name: true,
+          manufacturer: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        location: {
-          select: {
-            id: true,
-            name: true,
+          location: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        unit: {
-          select: {
-            id: true,
-            name: true,
+          unit: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
-        },
-        images: {
-          orderBy: {
-            order: 'asc',
+          images: {
+            orderBy: {
+              order: 'asc',
+            },
+            select: {
+              id: true,
+              url: true,
+              order: true,
+            },
           },
-          select: {
-            id: true,
-            url: true,
-            order: true,
-          },
-        },
-        tags: {
-          include: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
+          tags: {
+            include: {
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy,
-      skip: (page - 1) * limit,
-      take: limit,
-    })
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
 
     // 原価合計を計算して追加
     const formattedProducts = products.map((product) => ({

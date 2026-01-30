@@ -19,32 +19,22 @@ interface UseFiltersResult extends FiltersData {
   refetch: () => Promise<void>
 }
 
-/** 全フィルタデータを一括取得するfetcher */
+/** 統合APIから全フィルタデータを取得するfetcher */
 async function fetchAllFilters(): Promise<FiltersData> {
-  const [categoriesRes, manufacturersRes, locationsRes, unitsRes, tagsRes] =
-    await Promise.all([
-      fetch('/api/categories'),
-      fetch('/api/manufacturers'),
-      fetch('/api/locations'),
-      fetch('/api/units'),
-      fetch('/api/tags'),
-    ])
+  const response = await fetch('/api/filters')
 
-  const [categoriesData, manufacturersData, locationsData, unitsData, tagsData] =
-    await Promise.all([
-      categoriesRes.ok ? categoriesRes.json() : { categories: [] },
-      manufacturersRes.ok ? manufacturersRes.json() : { manufacturers: [] },
-      locationsRes.ok ? locationsRes.json() : { locations: [] },
-      unitsRes.ok ? unitsRes.json() : { units: [] },
-      tagsRes.ok ? tagsRes.json() : { tags: [] },
-    ])
+  if (!response.ok) {
+    throw new Error('フィルターデータの取得に失敗しました')
+  }
+
+  const data = await response.json()
 
   return {
-    categories: categoriesData.categories || [],
-    manufacturers: manufacturersData.manufacturers || [],
-    locations: locationsData.locations || [],
-    units: unitsData.units || [],
-    tags: tagsData.tags || [],
+    categories: data.categories || [],
+    manufacturers: data.manufacturers || [],
+    locations: data.locations || [],
+    units: data.units || [],
+    tags: data.tags || [],
   }
 }
 

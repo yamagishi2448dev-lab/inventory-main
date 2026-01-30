@@ -6,7 +6,6 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { getSession } from './session'
-import { prisma } from '@/lib/db/prisma'
 import { SESSION_COOKIE_NAME } from '@/lib/constants'
 
 /** 認証済みユーザー情報 */
@@ -40,8 +39,9 @@ export async function authenticateRequest(): Promise<AuthResult> {
             }
         }
 
+        // getSessionはユーザー情報を含むので追加クエリ不要
         const session = await getSession(token)
-        if (!session) {
+        if (!session?.user) {
             return {
                 success: false,
                 response: NextResponse.json(
@@ -51,28 +51,13 @@ export async function authenticateRequest(): Promise<AuthResult> {
             }
         }
 
-        const user = await prisma.user.findUnique({
-            where: { id: session.userId },
-            select: {
-                id: true,
-                username: true,
-                role: true,
-            },
-        })
-
-        if (!user) {
-            return {
-                success: false,
-                response: NextResponse.json(
-                    { error: 'ユーザーが見つかりません' },
-                    { status: 401 }
-                ),
-            }
-        }
-
         return {
             success: true,
-            user,
+            user: {
+                id: session.user.id,
+                username: session.user.username,
+                role: session.user.role,
+            },
         }
     } catch (error) {
         console.error('認証エラー:', error)
