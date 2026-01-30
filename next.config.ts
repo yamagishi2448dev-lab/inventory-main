@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Vercelでのパフォーマンス最適化
+  serverExternalPackages: ['@prisma/client', 'prisma'],
 };
 
 export default nextConfig;
