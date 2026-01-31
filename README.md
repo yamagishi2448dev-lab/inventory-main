@@ -4,21 +4,73 @@
 
 ## 技術スタック
 
-- **Next.js 14+** (App Router)
+- **Next.js 16+** (App Router)
 - **React 19**
-- **TypeScript**
-- **Prisma** (ORM)
+- **TypeScript 5.9+**
+- **Prisma 5.22+** (ORM)
 - **PostgreSQL**
 - **shadcn/ui** (UIコンポーネント)
-- **Tailwind CSS**
+- **Tailwind CSS 3.4+**
+- **Cloudinary** (画像ホスティング)
 
 ## 必要要件
 
 - Node.js 18以上
 - npm 9以上
 - Git
+- PostgreSQL（開発環境含む）
 
-## セットアップ
+## 主要機能（v2.3）
+
+### 商品・委託品管理
+- 商品/委託品のCRUD操作
+- SKU自動採番（商品: `SKU-00001`、委託品: `CSG-00001`）
+- 画像管理（最大5枚、ドラッグ&ドロップ対応）
+- 素材情報管理（説明+画像）
+- タグによる分類（複数タグ付与、OR条件フィルタ）
+- 販売済み管理（フラグ+日時）
+
+### 一覧・検索
+- テーブルビュー / グリッドビュー切替
+- 検索（商品名/仕様の部分一致）
+- フィルタ（メーカー/品目/場所/タグ/販売済み）
+- ソート（各カラム）
+- ページネーション（20件/ページ）
+
+### 一括操作
+- 複数選択（チェックボックス）
+- 全件選択（フィルタ結果、最大100件）
+- 一括削除
+- 一括編集（場所/メーカー/品目/タグ/個数）
+
+### CSVインポート/エクスポート
+- BOM付きUTF-8（Excel対応）
+- タグはパイプ区切り（`タグ1|タグ2`）
+- マスタデータ自動作成
+
+### マスタデータ管理
+- メーカー（仕入先・ブランド）
+- 品目（商品分類）
+- 場所（保管場所）
+- 単位（数量単位）
+- タグ（分類ラベル）
+- 素材項目（張地、木部など）
+
+### ダッシュボード
+- 統計情報（商品総数、品目数、メーカー数、原価合計）
+- メーカー別原価合計
+- 最近の変更履歴
+
+### 印刷
+- A4固定レイアウト（2列×2行=4件/ページ）
+- 選択商品/委託品のみ印刷
+
+### ユーザー管理（ADMIN権限）
+- ユーザーCRUD
+- パスワードリセット
+- ロール管理（ADMIN/USER）
+
+---
 
 ## クイックスタート（初めての方へ）
 
@@ -47,11 +99,16 @@ make dev
 3. 検索・フィルタで絞り込み確認
 4. 必要なら「印刷」でA4レイアウト出力
 
-### 4. 画面の見方（最小限）
+### 4. 画面の見方
 
-- ダッシュボード: 全体の概要とコスト集計を確認
-- 商品一覧: 追加・編集・検索・印刷の入口
-- マスタ管理: メーカー / 品目 / 場所 / 単位の管理
+- **ダッシュボード**: 全体の概要とコスト集計を確認
+- **商品一覧**: 追加・編集・検索・印刷の入口
+- **委託品一覧**: 委託品（原価0）の管理
+- **マスタ管理**: メーカー / 品目 / 場所 / 単位 / タグ / 素材項目
+
+---
+
+## セットアップ
 
 ### 1. 環境変数の設定
 
@@ -61,11 +118,19 @@ make dev
 # データベース接続URL（PostgreSQL）
 DATABASE_URL="postgresql://user:password@localhost:5432/inventory"
 
-# マイグレーション用の直結URL（DATABASE_URLと同じ値でOK）
-POSTGRES_URL="postgresql://user:password@localhost:5432/inventory"
+# マイグレーション用の直結URL
+DIRECT_URL="postgresql://user:password@localhost:5432/inventory"
 
 # セッション暗号化キー（ランダムな文字列）
 SESSION_SECRET="your-secret-key-here"
+
+# アプリケーションURL
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Cloudinary設定（本番環境用）
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
 ```
 
 ### 2. Makefileを使った初期セットアップ
@@ -91,7 +156,15 @@ make migrate
 make seed
 ```
 
+---
+
 ## 開発
+
+### 開発サーバー起動
+
+```bash
+make dev
+```
 
 ### その他の開発コマンド
 
@@ -111,6 +184,21 @@ make format
 # 全チェック（リント + 型チェック + テスト）
 make check
 ```
+
+### テスト
+
+```bash
+# 単体・統合テスト
+npm run test
+
+# E2Eテスト
+npm run test:e2e
+
+# カバレッジ
+npm run test:coverage
+```
+
+---
 
 ## ビルド・デプロイ
 
@@ -145,9 +233,17 @@ make migrate-prod
 
 Vercelダッシュボードで以下の環境変数を設定してください：
 
-- `DATABASE_URL`: PostgreSQL接続URL（Vercel Postgresで自動設定）
-- `SESSION_SECRET`: セッション暗号化キー（`openssl rand -base64 32`で生成）
-- `NEXT_PUBLIC_APP_URL`: アプリケーションURL（例: `https://your-app.vercel.app`）
+| 変数名 | 説明 |
+|--------|------|
+| `DATABASE_URL` | PostgreSQL接続URL |
+| `DIRECT_URL` | PostgreSQL直接接続URL |
+| `SESSION_SECRET` | セッション暗号化キー |
+| `NEXT_PUBLIC_APP_URL` | アプリケーションURL |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinaryクラウド名 |
+| `CLOUDINARY_API_KEY` | Cloudinary APIキー |
+| `CLOUDINARY_API_SECRET` | Cloudinary APIシークレット |
+
+---
 
 ## データベース管理
 
@@ -168,6 +264,8 @@ make prisma-studio
 make prisma-generate
 ```
 
+---
+
 ## プロジェクト構造
 
 ```
@@ -175,65 +273,52 @@ inventory/
 ├── app/                    # Next.js App Router
 │   ├── (auth)/            # 認証関連ページ
 │   ├── (dashboard)/       # ダッシュボード関連ページ
-│   └── api/               # API Routes
+│   │   ├── products/      # 商品管理
+│   │   ├── consignments/  # 委託品管理
+│   │   ├── manufacturers/ # メーカー管理
+│   │   ├── categories/    # 品目管理
+│   │   ├── locations/     # 場所管理
+│   │   ├── units/         # 単位管理
+│   │   ├── tags/          # タグ管理
+│   │   ├── material-types/# 素材項目管理
+│   │   └── admin/         # 管理者コンソール
+│   └── api/               # API Routes（約74エンドポイント）
 ├── components/            # Reactコンポーネント
 │   ├── ui/               # shadcn/uiコンポーネント
 │   ├── layout/           # レイアウトコンポーネント
-│   └── products/         # 商品関連コンポーネント
+│   ├── products/         # 商品関連コンポーネント
+│   ├── consignments/     # 委託品関連コンポーネント
+│   └── dashboard/        # ダッシュボードコンポーネント
 ├── lib/                   # ユーティリティ・ヘルパー
 │   ├── auth/             # 認証関連
 │   ├── db/               # データベース
-│   └── validations/      # バリデーション
+│   ├── validations/      # バリデーション（Zod）
+│   ├── utils/            # ユーティリティ
+│   └── hooks/            # カスタムフック
 ├── prisma/               # Prismaスキーマとマイグレーション
+├── tests/                # テストファイル
+│   ├── unit/             # 単体テスト
+│   ├── integration/      # 統合テスト
+│   └── e2e/              # E2Eテスト
 ├── public/               # 静的ファイル
 └── Makefile              # タスクランナー
 ```
 
-## 主要機能
+---
 
-### Phase 1-5 + Phase 2.0 (v2.0実装済み)
+## 用語の説明
 
-- ✅ ユーザー認証（ログイン/ログアウト）
-- ✅ 商品管理（CRUD操作）
-  - v2.0: メーカー、品目、場所、単位の管理に対応
-  - v2.0: SKU自動採番
-  - v2.0: 原価・定価管理
-  - v2.0: 個数管理
-- ✅ 検索・フィルタリング
-  - v2.0: メーカー、品目、場所によるフィルタ
-- ✅ ダッシュボード（統計情報）
-  - v2.0: メーカー別原価合計
-  - v2.0: 商品総数、品目数、原価合計の可視化
-- ✅ 商品画像アップロード
-- ✅ マスタ管理（メーカー、品目、場所、単位）
+| 用語 | 説明 |
+|------|------|
+| メーカー | 仕入先・ブランド名 |
+| 品目 | 商品の分類（例: ソファ、チェア） |
+| 場所 | 保管場所 |
+| 単位 | 数量の単位（例: 台、個） |
+| タグ | 商品の分類ラベル（複数付与可能） |
+| 素材項目 | 素材の種類（例: 張地、木部） |
+| 委託品 | 原価0の商品（委託販売用） |
 
-## 初めての操作ガイド
-
-### 商品を登録する
-
-1. 「商品一覧」→「新規登録」
-2. 必須項目（商品名・原価単価）を入力
-3. メーカー/品目/場所/単位はマスタから選択
-4. 必要に応じて画像を追加して保存
-
-### 検索・フィルタ
-
-- 検索欄: 商品名 / SKU / 仕様で検索
-- フィルタ: メーカー / 品目 / 場所で絞り込み
-- ソート: 一覧ヘッダーの矢印で並び替え
-
-### 印刷
-
-1. 一覧で商品を選択
-2. 「印刷」を押す
-3. A4 4件レイアウトで出力（PCのみ）
-
-## 用語の簡単な説明
-
-- メーカー: 仕入先・ブランド名
-- 品目: 商品の分類（例: ソファ、チェア）
-- 場所: 保管場所
-- 単位: 数量の単位（例: 台、個）
+---
 
 ## 運用・保守ガイド
 
@@ -251,34 +336,20 @@ inventory/
 
 ### 本番データベース運用
 
-- マイグレーション適用（Vercel）
-  - `npm run db:migrate:deploy`
-- ビルド時にマイグレーションを実行する場合
-  - `PRISMA_MIGRATE_DEPLOY=1` を環境変数に設定してデプロイ
-- 初期データ投入（必要な場合のみ）
-  - `npm run db:seed`
+```bash
+# マイグレーション適用（Vercel）
+npm run db:migrate:deploy
+
+# 初期データ投入（必要な場合のみ）
+npm run db:seed
+```
 
 ### バックアップ方針（目安）
 
 - Vercel Postgresのバックアップ設定を有効化
 - 重要な変更前は手動バックアップを実施
 
-### よくある作業
-
-```bash
-# 本番用ビルドが通るか確認
-make build
-
-# Prismaクライアントを再生成
-make prisma-generate
-```
-
-### Phase 6 (Future) - 入出庫管理
-
-- ⏳ 入庫機能
-- ⏳ 出庫機能
-- ⏳ 在庫履歴・トランザクション
-- ⏳ レポート・グラフ機能
+---
 
 ## トラブルシューティング
 
@@ -312,12 +383,37 @@ make build
 make prisma-generate
 ```
 
-## ライセンス
+### `.next/dev/lock`エラー
 
-MIT
+```bash
+# 既存のnext devプロセスを停止してから再起動
+# Windows: タスクマネージャーでnode.exeを終了
+# Mac/Linux: pkill -f "next dev"
+make dev
+```
+
+---
 
 ## ドキュメント
 
-- **[CLAUDE.md](./CLAUDE.md)** - 詳細な仕様書
+- **[.claude/CLAUDE.md](./.claude/CLAUDE.md)** - 詳細な仕様書
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - デプロイメントガイド
 - **[TODO.md](./TODO.md)** - 実装計画と進捗
+
+---
+
+## バージョン履歴
+
+| バージョン | 主な変更 |
+|-----------|---------|
+| v2.3.0 | designerフィールド追加 |
+| v2.2.0 | タグ機能追加 |
+| v2.1.0 | 委託品、素材、変更履歴、システム設定追加 |
+| v2.0.0 | 命名変更、SKU自動採番、Unit追加 |
+| v1.0.0 | 初期リリース |
+
+---
+
+## ライセンス
+
+MIT

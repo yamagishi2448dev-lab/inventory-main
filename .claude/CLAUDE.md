@@ -19,87 +19,114 @@
 
 ## 1. 概要
 - 対象: 個人・小規模ビジネス（2-10名）の在庫管理
-- 目的: 商品マスタを中心に、品目・メーカー・場所・単位・タグ・画像を一元管理
+- 目的: 商品・委託品を中心に、品目・メーカー・場所・単位・タグ・素材・画像を一元管理
 - スタイル: シンプル、直感的、将来拡張可能
 
 ## 2. 主要ロール
-- **ADMIN**: 全機能 + ユーザー管理
-- **USER**: 商品/マスタデータのCRUD（ユーザー管理は不可）
+- **ADMIN**: 全機能 + ユーザー管理 + システム設定
+- **USER**: 商品/委託品/マスタデータのCRUD（ユーザー管理は不可）
 
 ## 3. 技術・運用制約（必須）
-- Next.js 14+（App Router）, React 19, TypeScript
-- Prisma ORM
+- Next.js 16+（App Router）, React 19, TypeScript 5.9+
+- Prisma 5.22+ ORM
 - 認証: セッションベース（DB永続化 + Cookieにランダムトークンのみ保存）
 - パスワード: bcryptでハッシュ化
 - APIレスポンス: JSON + `Content-Type: application/json; charset=utf-8`
 - DB: PostgreSQL（開発環境も含めSQLiteは使用禁止）
 - 画像保存: Cloudinary（本番環境）
 - デプロイ: Vercel
+- UIコンポーネント: shadcn/ui + Radix UI + Tailwind CSS
 
-## 4. データモデル（v2.2 現行）
+## 4. データモデル（v2.3 現行）
 > 旧呼称: Supplier → Manufacturer, Category → 品目, Tag（v1）→ Location
 
-### 4.1 Product
+### 4.1 Product（商品）
 - `sku` 自動採番（`SKU-00001` 形式、編集不可）
-- 主な項目: name, manufacturerId, categoryId, specification, fabricColor, quantity, unitId,
-  costPrice, listPrice, arrivalDate, locationId, notes, images[], materials[], tags[]
-- 追加項目: size, isSold, soldAt
+- 必須項目: name, costPrice
+- 主な項目: manufacturerId, categoryId, specification, size, fabricColor, quantity, unitId,
+  costPrice, listPrice, arrivalDate, locationId, designer, notes
+- リレーション: images[], materials[], tags[]
+- フラグ: isSold, soldAt
+- 監査: createdAt, updatedAt
 
 ### 4.2 Consignment（委託品）
 - `sku` 自動採番（`CSG-00001` 形式、編集不可）
-- Productと同等の構造、原価単価は常に0
+- Productと同等の構造、costPriceは常に0
 - images[], materials[], tags[], isSold, soldAt を含む
 
-### 4.3 Material
-- MaterialType: name, order
-- ProductMaterial / ConsignmentMaterial: materialTypeId, description, imageUrl, order
+### 4.3 Material（素材）
+- MaterialType: id, name, order（素材項目マスタ）
+- ProductMaterial: productId, materialTypeId, description, imageUrl, order
+- ConsignmentMaterial: consignmentId, materialTypeId, description, imageUrl, order
 
-### 4.4 Tag（v2.2 追加）
+### 4.4 Tag（タグ）
 - Tag: id, name, createdAt, updatedAt
-- ProductTag: productId, tagId（多対多中間テーブル）
-- ConsignmentTag: consignmentId, tagId（多対多中間テーブル）
+- ProductTag: productId, tagId（多対多中間テーブル、複合ユニーク制約）
+- ConsignmentTag: consignmentId, tagId（多対多中間テーブル、複合ユニーク制約）
 - 商品・委託品に複数タグを付与可能
 - タグによるフィルタリング（OR条件）
 
-### 4.5 Master Data
-- Manufacturer（メーカー）: name
-- Category（品目）: name
-- Location（場所）: name
-- Unit（単位）: name
+### 4.5 Master Data（マスタデータ）
+- Manufacturer（メーカー）: id, name, products[], consignments[]
+- Category（品目）: id, name, products[], consignments[]
+- Location（場所）: id, name, products[], consignments[]
+- Unit（単位）: id, name, products[], consignments[]
+- 各マスタは商品・委託品の両方から参照される
 
-### 4.6 System
-- ChangeLog: entityType, entityId, action, changes, user, createdAt
-- SystemSetting: key, value（運用ルール）
+### 4.6 Image（画像）
+- ProductImage: id, productId, url, order（Cascade削除）
+- ConsignmentImage: id, consignmentId, url, order（Cascade削除）
+
+### 4.7 System（システム）
+- ChangeLog: entityType, entityId, entityName, entitySku, action, changes(JSON), userId, userName, createdAt
+- SystemSetting: id, key(unique), value, updatedAt（SKU採番カウンター等）
+- User: id, username, passwordHash, role, createdAt, sessions[]
+- Session: id, userId, tokenHash, expiresAt, createdAt
 
 ## 5. 機能要件（要約）
-- 認証/ユーザー管理、商品/委託品管理、素材項目管理、変更履歴、運用ルール、マスタ管理、ダッシュボード、印刷レイアウト
-- タグ管理: 商品・委託品への複数タグ付与、タグによるフィルタリング
-- CSVインポート/エクスポート: 商品・委託品の一括データ入出力（タグ対応）
-- 一括操作: 複数商品/委託品の一括編集・削除
+- 認証/ユーザー管理（ログイン、ログアウト、パスワード変更、ユーザーCRUD）
+- 商品管理（CRUD、SKU自動採番、画像・素材・タグ管理、販売済みフラグ）
+- 委託品管理（商品と同等の機能、costPrice=0固定）
+- 素材項目管理（MaterialType CRUD、表示順管理）
+- タグ管理（CRUD、商品・委託品への複数タグ付与）
+- 変更履歴（商品・委託品の作成/更新/削除を記録）
+- マスタ管理（メーカー/品目/場所/単位のCRUD）
+- ダッシュボード（統計、メーカー別原価合計、最近の変更）
+- 印刷レイアウト（A4 2x2、選択商品のみ）
+- CSVインポート/エクスポート（商品・委託品、タグ対応、マスタ自動作成）
+- 一括操作（複数選択、一括削除、一括編集）
 - 詳細は `./rules/functional-requirements.md`
 
 ## 6. API共通仕様（要約）
-- ベース: `/api`、認証必須（`/api/auth/*`除く）
+- ベース: `/api`
+- 認証必須（`/api/auth/*`除く）
+- エンドポイント数: 約50
 - 詳細は `./rules/api-spec.md`
 
 ## 7. 非機能要件（要約）
 - 画像: JPEG/PNG/WebP, 最大5MB, 5枚/商品
 - 対応ブラウザ: 最新Chrome/Firefox/Safari/Edge
 - レスポンシブ: スマホ対応（印刷は非対応）
+- データ目安: 商品10,000件、マスタ各100-200件
 
 ## 8. 環境変数
-- `DATABASE_URL`: PostgreSQL接続URL（Transaction pooler）
-- `DIRECT_URL`: PostgreSQL直接接続URL（マイグレーション用）
-- `SESSION_SECRET`: セッション暗号化キー
-- `NEXT_PUBLIC_APP_URL`: アプリケーションURL
-- `CLOUDINARY_CLOUD_NAME`: Cloudinaryクラウド名（画像保存用）
-- `CLOUDINARY_API_KEY`: Cloudinary APIキー（画像保存用）
-- `CLOUDINARY_API_SECRET`: Cloudinary APIシークレット（画像保存用）
+| 変数名 | 説明 | 必須 |
+|--------|------|------|
+| `DATABASE_URL` | PostgreSQL接続URL（Transaction pooler） | 必須 |
+| `DIRECT_URL` | PostgreSQL直接接続URL（マイグレーション用） | 必須 |
+| `SESSION_SECRET` | セッション暗号化キー | 必須 |
+| `NEXT_PUBLIC_APP_URL` | アプリケーションURL | 必須 |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinaryクラウド名 | 本番必須 |
+| `CLOUDINARY_API_KEY` | Cloudinary APIキー | 本番必須 |
+| `CLOUDINARY_API_SECRET` | Cloudinary APIシークレット | 本番必須 |
+| `DEV_AUTO_SEED_ADMIN` | 開発用自動シード | 任意 |
+| `DEV_ADMIN_USERNAME` | 開発用管理者名 | 任意 |
+| `DEV_ADMIN_PASSWORD` | 開発用管理者パスワード | 任意 |
 
 ---
 
-**最終更新日**: 2026-01-21
-**バージョン**: 2.2.0
+**最終更新日**: 2026-01-31
+**バージョン**: 2.3.0
 
 ---
 
