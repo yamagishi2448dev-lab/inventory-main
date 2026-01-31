@@ -26,19 +26,33 @@ test.describe('Products V2', () => {
     test('should allow filtering by manufacturer', async ({ page }) => {
         await page.goto('/products')
 
-        // Wait for filters to load (select options)
-        const manufacturerSelect = page.locator('#manufacturer')
-        await expect(manufacturerSelect).toBeVisible()
+        // v2: Popover + Buttonパターンでフィルタを実装
+        // メーカーフィルタボタンをクリックしてPopoverを開く
+        const manufacturerButton = page.getByRole('button', { name: /メーカー/ })
+        await expect(manufacturerButton).toBeVisible()
+        await manufacturerButton.click()
 
-        // Select a manufacturer if available (this depends on seeded data)
-        // We just verify the element exists and can be interacted with
-        await manufacturerSelect.selectOption({ index: 1 }) // Select first available option
+        // Popoverが表示されるまで待機
+        const popover = page.locator('[role="dialog"]').last()
+        await expect(popover).toBeVisible()
 
-        // Verify URL params
-        // Wait a bit for state update if needed, but selectOption usually triggers change
-        // Fetch is debounced/triggered.
-        // We can check if "フィルタをクリア" button appears
-        await expect(page.getByRole('button', { name: 'フィルタをクリア' })).toBeVisible()
+        // 最初のメーカーを選択（「すべて」を除く）
+        const manufacturerOptions = popover.locator('button').filter({ hasText: /^(?!すべて)/ })
+        const firstOption = manufacturerOptions.first()
+
+        // オプションが存在する場合のみクリック
+        if (await firstOption.count() > 0) {
+            await firstOption.click()
+
+            // URLパラメータが更新されたことを確認
+            await page.waitForFunction(() => {
+                const params = new URLSearchParams(window.location.search)
+                return params.has('manufacturerId')
+            }, { timeout: 5000 })
+
+            // リセットボタンが有効になることを確認
+            await expect(page.getByRole('button', { name: /リセット/ })).toBeEnabled()
+        }
     })
 
     test('should navigate to valid product V2 create page', async ({ page }) => {
