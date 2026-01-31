@@ -68,6 +68,7 @@ export default function LoginPage() {
             <Label htmlFor="username">ユーザー名</Label>
             <Input
               id="username"
+              name="username"
               type="text"
               placeholder="ユーザー名を入力"
               value={username}
@@ -83,6 +84,7 @@ export default function LoginPage() {
             </div>
             <Input
               id="password"
+              name="password"
               type="password"
               placeholder="パスワードを入力"
               value={password}
