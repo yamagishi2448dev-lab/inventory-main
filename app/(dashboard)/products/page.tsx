@@ -465,7 +465,156 @@ export default function ProductsPage() {
     </div>
   )
 
-  // フィルタードロップダウンコンポーネント（検索機能付き）
+  // ヘッダーエリア用フィルタードロップダウン（状態管理付き）
+  const HeaderFilterDropdown = ({
+    field,
+    options,
+    currentValue,
+    label
+  }: {
+    field: 'categoryId' | 'manufacturerId' | 'locationId'
+    options: { id: string; name: string }[]
+    currentValue: string
+    label: string
+  }) => {
+    const [open, setOpen] = useState(false)
+    const [filterSearch, setFilterSearch] = useState('')
+
+    const filteredOptions = options.filter((option) =>
+      option.name.toLowerCase().includes(filterSearch.toLowerCase())
+    )
+
+    const selectedName = options.find(o => o.id === currentValue)?.name
+
+    return (
+      <Popover open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen)
+        if (!isOpen) setFilterSearch('')
+      }}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-8 text-xs ${currentValue ? 'border-blue-500 text-blue-600' : ''}`}
+          >
+            <Filter className="h-3 w-3 mr-1" />
+            {selectedName || label}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-2" align="start">
+          <div className="space-y-2">
+            <Input
+              placeholder={`${label}を検索...`}
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              className="h-7 text-xs"
+            />
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              <button
+                onClick={() => {
+                  updateFilter(field, '')
+                  setOpen(false)
+                }}
+                className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${!currentValue ? 'bg-blue-50 text-blue-600' : ''}`}
+              >
+                すべて
+              </button>
+              {filteredOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => {
+                    updateFilter(field, option.id)
+                    setOpen(false)
+                  }}
+                  className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${currentValue === option.id ? 'bg-blue-50 text-blue-600' : ''}`}
+                >
+                  {option.name}
+                </button>
+              ))}
+              {filteredOptions.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-2">該当なし</p>
+              )}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    )
+  }
+
+  // ヘッダーエリア用タグフィルタードロップダウン（状態管理付き）
+  const HeaderTagFilterDropdown = () => {
+    const [open, setOpen] = useState(false)
+    const [filterSearch, setFilterSearch] = useState('')
+
+    const filteredTags = tags.filter((tag) =>
+      tag.name.toLowerCase().includes(filterSearch.toLowerCase())
+    )
+
+    const toggleTag = (tagId: string) => {
+      const newTagIds = tagIds.includes(tagId)
+        ? tagIds.filter((id) => id !== tagId)
+        : [...tagIds, tagId]
+      updateFilter('tagIds', newTagIds.join(','))
+    }
+
+    const clearTags = () => {
+      updateFilter('tagIds', '')
+      setOpen(false)
+    }
+
+    return (
+      <Popover open={open} onOpenChange={(isOpen) => {
+        setOpen(isOpen)
+        if (!isOpen) setFilterSearch('')
+      }}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-8 text-xs ${tagIds.length > 0 ? 'border-blue-500 text-blue-600' : ''}`}
+          >
+            <Filter className="h-3 w-3 mr-1" />
+            {tagIds.length > 0 ? `タグ(${tagIds.length})` : 'タグ'}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-48 p-2" align="start">
+          <div className="space-y-2">
+            <Input
+              placeholder="タグを検索..."
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              className="h-7 text-xs"
+            />
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              <button
+                onClick={clearTags}
+                className={`w-full text-left px-2 py-1 text-xs rounded hover:bg-gray-100 ${tagIds.length === 0 ? 'bg-blue-50 text-blue-600' : ''}`}
+              >
+                すべて
+              </button>
+              {filteredTags.map((tag) => (
+                <label
+                  key={tag.id}
+                  className="flex items-center gap-2 px-2 py-1 text-xs rounded hover:bg-gray-100 cursor-pointer"
+                >
+                  <Checkbox
+                    checked={tagIds.includes(tag.id)}
+                    onCheckedChange={() => toggleTag(tag.id)}
+                  />
+                  {tag.name}
+                </label>
+              ))}
+              {filteredTags.length === 0 && (
+                <p className="text-xs text-gray-400 text-center py-2">該当なし</p>
+              )}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    )
+  }
+
+  // フィルタードロップダウンコンポーネント（検索機能付き）- テーブルヘッダー用
   const FilterDropdown = ({
     field,
     options,
@@ -645,6 +794,29 @@ export default function ProductsPage() {
                   <X className="h-3 w-3" />
                 </button>
               )}
+            </div>
+
+            {/* フィルタードロップダウン群 */}
+            <div className="flex flex-wrap items-center gap-2">
+              <HeaderFilterDropdown
+                field="manufacturerId"
+                options={manufacturers}
+                currentValue={manufacturerId}
+                label="メーカー"
+              />
+              <HeaderFilterDropdown
+                field="categoryId"
+                options={categories}
+                currentValue={categoryId}
+                label="品目"
+              />
+              <HeaderFilterDropdown
+                field="locationId"
+                options={locations}
+                currentValue={locationId}
+                label="場所"
+              />
+              <HeaderTagFilterDropdown />
             </div>
 
             {/* 販売済みを含むトグル v2.1追加 */}
@@ -903,6 +1075,9 @@ export default function ProductsPage() {
                         <span className="text-xs font-medium">原価単価</span>
                       </SortableHeader>
                     </TableHead>
+                    <TableHead className="py-1.5 px-2 text-right">
+                      <span className="text-xs font-medium">定価単価</span>
+                    </TableHead>
                     <TableHead className="py-1.5 px-2">
                       <div className="flex items-center gap-1">
                         <SortableHeader field="location">
@@ -934,7 +1109,7 @@ export default function ProductsPage() {
                 <TableBody>
                   {products.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={hasSelection ? 11 : 10} className="text-xs py-4 px-2 text-center text-gray-500">
+                      <TableCell colSpan={hasSelection ? 12 : 11} className="text-xs py-4 px-2 text-center text-gray-500">
                         商品が登録されていません
                       </TableCell>
                     </TableRow>
@@ -981,6 +1156,9 @@ export default function ProductsPage() {
                           </TableCell>
                           <TableCell className="text-xs py-1 px-2 text-right">
                             {formatPrice(product.costPrice as string)}
+                          </TableCell>
+                          <TableCell className="text-xs py-1 px-2 text-right">
+                            {product.listPrice ? formatPrice(product.listPrice as string) : '-'}
                           </TableCell>
                           <TableCell className="text-xs py-1 px-2">{product.location?.name || '-'}</TableCell>
                           {/* v2.2追加: タグ列 */}
@@ -1032,7 +1210,19 @@ export default function ProductsPage() {
 
           {/* ページネーション */}
           {pagination.totalPages > 1 && (
-            <div className="flex justify-center items-center space-x-2">
+            <div className="flex justify-center items-center space-x-1">
+              {/* 最初へ */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs px-2"
+                onClick={() => handlePageChange(1)}
+                disabled={pagination.page === 1}
+                title="最初のページ"
+              >
+                {'<<'}
+              </Button>
+              {/* 前へ */}
               <Button
                 variant="outline"
                 size="sm"
@@ -1042,9 +1232,57 @@ export default function ProductsPage() {
               >
                 前へ
               </Button>
-              <span className="text-xs">
-                {pagination.page} / {pagination.totalPages} ページ
-              </span>
+              {/* ページ番号 */}
+              {(() => {
+                const pages: (number | string)[] = []
+                const current = pagination.page
+                const total = pagination.totalPages
+
+                // 常に1ページ目を表示
+                pages.push(1)
+
+                // 現在ページの前後2ページを計算
+                const start = Math.max(2, current - 2)
+                const end = Math.min(total - 1, current + 2)
+
+                // 1との間に省略がある場合
+                if (start > 2) {
+                  pages.push('...')
+                }
+
+                // 中間のページ番号
+                for (let i = start; i <= end; i++) {
+                  pages.push(i)
+                }
+
+                // 最後との間に省略がある場合
+                if (end < total - 1) {
+                  pages.push('...')
+                }
+
+                // 最後のページ（1ページより大きい場合のみ）
+                if (total > 1) {
+                  pages.push(total)
+                }
+
+                return pages.map((page, index) => (
+                  typeof page === 'string' ? (
+                    <span key={`ellipsis-${index}`} className="px-2 text-xs text-gray-400">...</span>
+                  ) : (
+                    <Button
+                      key={page}
+                      variant={page === current ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 w-7 text-xs p-0"
+                      onClick={() => handlePageChange(page)}
+                      disabled={page === current}
+                    >
+                      {page}
+                    </Button>
+                  )
+                ))
+              })()}
+              {/* 次へ */}
               <Button
                 variant="outline"
                 size="sm"
@@ -1053,6 +1291,17 @@ export default function ProductsPage() {
                 disabled={pagination.page === pagination.totalPages}
               >
                 次へ
+              </Button>
+              {/* 最後へ */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs px-2"
+                onClick={() => handlePageChange(pagination.totalPages)}
+                disabled={pagination.page === pagination.totalPages}
+                title="最後のページ"
+              >
+                {'>>'}
               </Button>
             </div>
           )}

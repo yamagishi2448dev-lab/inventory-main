@@ -12,6 +12,7 @@ const CONSIGNMENT_IMPORT_HEADERS = [
   '定価単価',
   '入荷年月',
   '場所',
+  'デザイナー',
   'タグ',
   '備考',
   '販売済み',

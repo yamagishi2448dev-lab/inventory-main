@@ -36,6 +36,7 @@ interface Consignment {
   listPrice: string | null
   arrivalDate: string | null
   location: { id: string; name: string } | null
+  designer: string | null  // v2.3追加
   notes: string | null
   isSold: boolean
   soldAt: string | null
@@ -304,6 +305,10 @@ export default function ConsignmentDetailPage({ params }: { params: Promise<{ id
             <div>
               <div className="text-sm text-gray-500">入荷年月</div>
               <div className="font-medium">{consignment.arrivalDate || '未設定'}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-500">デザイナー</div>
+              <div className="font-medium">{consignment.designer || '未設定'}</div>
             </div>
           </div>
 

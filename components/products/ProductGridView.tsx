@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Card, CardContent, CardFooter } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { ProductWithRelations } from '@/lib/types'
+import { formatPrice } from '@/lib/utils'
 import { ImageIcon } from 'lucide-react'
 
 interface ProductGridViewProps {
@@ -127,9 +128,24 @@ export function ProductGridView({
                         </div>
                     </CardContent>
 
-                    <CardFooter className="p-4 pt-0 border-t bg-slate-50/50 flex items-center justify-between mt-auto">
-                        <div className="font-mono font-bold text-lg text-slate-700">
-                            {product.quantity} <span className="text-xs font-normal text-muted-foreground">{product.unit?.name || '個'}</span>
+                    <CardFooter className="p-4 pt-0 border-t bg-slate-50/50 mt-auto">
+                        <div className="w-full flex flex-col gap-1">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">個数</span>
+                                <span className="font-mono font-bold text-slate-700">
+                                    {product.quantity} <span className="text-xs font-normal">{product.unit?.name || '個'}</span>
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">原価</span>
+                                <span className="font-mono text-sm">{formatPrice(product.costPrice as string)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">定価</span>
+                                <span className="font-mono text-sm">
+                                    {product.listPrice ? formatPrice(product.listPrice as string) : '-'}
+                                </span>
+                            </div>
                         </div>
                     </CardFooter>
                 </Card>

@@ -5,6 +5,7 @@ import { authenticateRequest } from '@/lib/auth/middleware'
 import { generateConsignmentSku } from '@/lib/utils/sku'
 import { createChangeLog } from '@/lib/changelog'
 import { parseCSV } from '@/lib/utils/csv'
+import { convertExcelSerialDate } from '@/lib/utils/date'
 import { z } from 'zod'
 
 const REQUIRED_HEADERS = ['商品名']
@@ -190,8 +191,9 @@ export async function POST(request: NextRequest) {
         quantity,
         unitId,
         listPrice: normalizeNumber(getValue('定価単価')) || null,
-        arrivalDate: getValue('入荷年月') || null,
+        arrivalDate: convertExcelSerialDate(getValue('入荷年月')),
         locationId,
+        designer: getValue('デザイナー') || null,
         notes: getValue('備考') || null,
         isSold,
         soldAt: soldAtParsed.value || null,
@@ -215,6 +217,7 @@ export async function POST(request: NextRequest) {
             listPrice: validated.listPrice || null,
             arrivalDate: validated.arrivalDate || null,
             locationId: validated.locationId || null,
+            designer: validated.designer || null,
             notes: validated.notes || null,
             isSold: validated.isSold || false,
             soldAt: validated.soldAt ? new Date(validated.soldAt) : null,

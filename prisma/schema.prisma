@@ -37,7 +37,7 @@ model Session {
   @@map("sessions")
 }
 
-// 商品 v2.1
+// 商品 v2.3
 model Product {
   id             String         @id @default(cuid())
   sku            String         @unique  // 自動採番: SKU-00001形式
@@ -53,6 +53,7 @@ model Product {
   listPrice      Decimal?       // 定価単価
   arrivalDate    String?                 // 入荷年月（例: "2024年1月"）
   locationId     String?                 // 場所ID
+  designer       String?                 // デザイナー（v2.3追加）
   notes          String?                 // 備考
   isSold         Boolean        @default(false)  // 販売済みフラグ（v2.1追加）
   soldAt         DateTime?               // 販売済み日時（v2.1追加）
@@ -193,7 +194,7 @@ model ChangeLog {
   @@map("change_logs")
 }
 
-// 委託品（v2.1追加）
+// 委託品（v2.1追加、v2.3更新）
 model Consignment {
   id             String    @id @default(cuid())
   sku            String    @unique  // 自動採番: CSG-00001形式
@@ -209,6 +210,7 @@ model Consignment {
   listPrice      Decimal?  // 定価単価
   arrivalDate    String?             // 入荷年月
   locationId     String?             // 場所ID
+  designer       String?             // デザイナー（v2.3追加）
   notes          String?             // 備考
   isSold         Boolean   @default(false)  // 販売済みフラグ
   soldAt         DateTime?           // 販売済み日時

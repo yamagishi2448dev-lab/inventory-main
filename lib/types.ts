@@ -61,7 +61,7 @@ export interface ProductImage {
     order: number
 }
 
-/** 商品の基本型 v2.1 */
+/** 商品の基本型 v2.3 */
 export interface Product {
     id: string
     sku: string
@@ -77,6 +77,7 @@ export interface Product {
     listPrice?: string | Prisma.Decimal | null
     arrivalDate?: string | null
     locationId?: string | null
+    designer?: string | null  // v2.3追加
     notes?: string | null
     isSold?: boolean  // v2.1追加
     soldAt?: Date | string | null  // v2.1追加
@@ -323,7 +324,7 @@ export interface ChangeLog {
     createdAt: Date | string
 }
 
-/** 委託品の基本型 v2.1 */
+/** 委託品の基本型 v2.3 */
 export interface Consignment {
     id: string
     sku: string
@@ -339,6 +340,7 @@ export interface Consignment {
     listPrice?: string | Prisma.Decimal | null
     arrivalDate?: string | null
     locationId?: string | null
+    designer?: string | null  // v2.3追加
     notes?: string | null
     isSold?: boolean
     soldAt?: Date | string | null

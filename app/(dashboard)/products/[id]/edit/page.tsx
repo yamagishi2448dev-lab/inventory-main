@@ -38,6 +38,7 @@ interface Product {
   listPrice: string | null
   arrivalDate: string | null
   location: { id: string; name: string } | null
+  designer: string | null  // v2.3追加
   notes: string | null
   images: { id: string; url: string; order: number }[]
   materials?: ProductMaterial[]
@@ -63,7 +64,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   // v2.2 タグ選択状態
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
-  // v2.1フォームデータ
+  // v2.3フォームデータ
   const [formData, setFormData] = useState({
     name: '',
     manufacturerId: '',
@@ -77,6 +78,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     listPrice: '',
     arrivalDate: '',
     locationId: '',
+    designer: '',  // v2.3追加
     notes: '',
   })
 
@@ -114,6 +116,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           listPrice: product.listPrice || '',
           arrivalDate: product.arrivalDate || '',
           locationId: product.location?.id || '',
+          designer: product.designer || '',  // v2.3追加
           notes: product.notes || '',
         })
         setImages(product.images.map((img) => ({ url: img.url, order: img.order })))
@@ -160,7 +163,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     setError(null)
 
     try {
-      // v2.2 ペイロード
+      // v2.3 ペイロード
       const payload = {
         name: formData.name,
         manufacturerId: formData.manufacturerId || null,
@@ -174,6 +177,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         listPrice: formData.listPrice || null,
         arrivalDate: formData.arrivalDate || null,
         locationId: formData.locationId || null,
+        designer: formData.designer || null,  // v2.3追加
         notes: formData.notes || null,
         images: images,
         tagIds: selectedTagIds,  // v2.2追加
@@ -475,6 +479,19 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                   placeholder="20000"
                 />
               </div>
+            </div>
+
+            {/* デザイナー v2.3追加 */}
+            <div className="space-y-2">
+              <Label htmlFor="designer">デザイナー</Label>
+              <Input
+                id="designer"
+                name="designer"
+                value={formData.designer}
+                onChange={handleChange}
+                maxLength={200}
+                placeholder="デザイナー名を入力"
+              />
             </div>
 
             {/* 備考 */}

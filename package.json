@@ -23,6 +23,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
+    "db:fix-dates": "tsx scripts/fix-arrival-dates.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

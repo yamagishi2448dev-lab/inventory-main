@@ -37,6 +37,7 @@ interface Product {
   listPrice: string | null
   arrivalDate: string | null
   location: { id: string; name: string } | null
+  designer: string | null  // v2.3追加
   notes: string | null
   isSold: boolean  // v2.1追加
   soldAt: string | null  // v2.1追加
@@ -308,6 +309,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <div>
               <div className="text-sm text-gray-500">入荷年月</div>
               <div className="font-medium">{product.arrivalDate || '未設定'}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-500">デザイナー</div>
+              <div className="font-medium">{product.designer || '未設定'}</div>
             </div>
             <div>
               <div className="text-sm text-gray-500">タグ</div>

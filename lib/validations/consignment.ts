@@ -82,6 +82,13 @@ export const consignmentSchema = z.object({
     .optional()
     .nullable(),
 
+  // デザイナー（オプション、v2.3追加）
+  designer: z
+    .string()
+    .max(200, 'デザイナーは200文字以内で入力してください')
+    .optional()
+    .nullable(),
+
   // 備考（オプション）
   notes: z
     .string()

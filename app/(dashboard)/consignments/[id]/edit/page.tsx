@@ -42,6 +42,7 @@ interface Consignment {
   listPrice: string | null
   arrivalDate: string | null
   location: { id: string; name: string } | null
+  designer: string | null  // v2.3追加
   notes: string | null
   images: ConsignmentImage[]
   materials?: ConsignmentMaterial[]
@@ -80,6 +81,7 @@ export default function EditConsignmentPage({ params }: { params: Promise<{ id: 
     listPrice: '',
     arrivalDate: '',
     locationId: '',
+    designer: '',  // v2.3追加
     notes: '',
   })
 
@@ -116,6 +118,7 @@ export default function EditConsignmentPage({ params }: { params: Promise<{ id: 
           listPrice: consignment.listPrice || '',
           arrivalDate: consignment.arrivalDate || '',
           locationId: consignment.location?.id || '',
+          designer: consignment.designer || '',  // v2.3追加
           notes: consignment.notes || '',
         })
         const loadedImages = (consignment.images || []).map((img) => ({
@@ -222,7 +225,7 @@ export default function EditConsignmentPage({ params }: { params: Promise<{ id: 
     setError(null)
 
     try {
-      // v2.2 ペイロード
+      // v2.3 ペイロード
       const payload = {
         name: formData.name,
         manufacturerId: formData.manufacturerId || null,
@@ -235,6 +238,7 @@ export default function EditConsignmentPage({ params }: { params: Promise<{ id: 
         listPrice: formData.listPrice || null,
         arrivalDate: formData.arrivalDate || null,
         locationId: formData.locationId || null,
+        designer: formData.designer || null,  // v2.3追加
         notes: formData.notes || null,
         tagIds: selectedTagIds,  // v2.2追加
       }
@@ -520,6 +524,19 @@ export default function EditConsignmentPage({ params }: { params: Promise<{ id: 
                   0 (固定)
                 </div>
               </div>
+            </div>
+
+            {/* デザイナー v2.3追加 */}
+            <div className="space-y-2">
+              <Label htmlFor="designer">デザイナー</Label>
+              <Input
+                id="designer"
+                name="designer"
+                value={formData.designer}
+                onChange={handleChange}
+                maxLength={200}
+                placeholder="デザイナー名を入力"
+              />
             </div>
 
             <div className="space-y-2">
