@@ -30,7 +30,18 @@ export async function GET() {
             },
         })
 
-        return NextResponse.json({ locations })
+        const locationsWithLegacyCounts = locations.map((location) => {
+            const itemCount = location._count?.items ?? 0
+            return {
+                ...location,
+                _count: {
+                    ...location._count,
+                    products: itemCount,
+                },
+            }
+        })
+
+        return NextResponse.json({ locations: locationsWithLegacyCounts })
     } catch (error) {
         console.error('場所一覧取得エラー:', error)
         return NextResponse.json(

@@ -25,7 +25,18 @@ export async function GET() {
             orderBy: { name: 'asc' },
         })
 
-        return NextResponse.json({ units })
+        const unitsWithLegacyCounts = units.map((unit) => {
+            const itemCount = unit._count?.items ?? 0
+            return {
+                ...unit,
+                _count: {
+                    ...unit._count,
+                    products: itemCount,
+                },
+            }
+        })
+
+        return NextResponse.json({ units: unitsWithLegacyCounts })
     } catch (error) {
         console.error('単位一覧取得エラー:', error)
         return NextResponse.json(

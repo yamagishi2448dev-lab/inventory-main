@@ -31,7 +31,18 @@ export async function GET() {
             },
         })
 
-        return NextResponse.json({ manufacturers })
+        const manufacturersWithLegacyCounts = manufacturers.map((manufacturer) => {
+            const itemCount = manufacturer._count?.items ?? 0
+            return {
+                ...manufacturer,
+                _count: {
+                    ...manufacturer._count,
+                    products: itemCount,
+                },
+            }
+        })
+
+        return NextResponse.json({ manufacturers: manufacturersWithLegacyCounts })
     } catch (error) {
         console.error('メーカー一覧取得エラー:', error)
         return NextResponse.json(

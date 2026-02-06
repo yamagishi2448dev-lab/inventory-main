@@ -24,7 +24,19 @@ export async function GET() {
       },
     })
 
-    return NextResponse.json({ tags })
+    const tagsWithLegacyCounts = tags.map((tag) => {
+      const itemCount = tag._count?.items ?? 0
+      return {
+        ...tag,
+        _count: {
+          ...tag._count,
+          products: itemCount,
+          consignments: itemCount,
+        },
+      }
+    })
+
+    return NextResponse.json({ tags: tagsWithLegacyCounts })
   } catch (error) {
     console.error('タグ一覧取得エラー:', error)
     return NextResponse.json(

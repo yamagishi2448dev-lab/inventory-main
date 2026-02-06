@@ -24,7 +24,18 @@ export async function GET() {
       },
     })
 
-    return NextResponse.json({ categories })
+    const categoriesWithLegacyCounts = categories.map((category) => {
+      const itemCount = category._count?.items ?? 0
+      return {
+        ...category,
+        _count: {
+          ...category._count,
+          products: itemCount,
+        },
+      }
+    })
+
+    return NextResponse.json({ categories: categoriesWithLegacyCounts })
   } catch (error) {
     console.error('カテゴリ一覧取得エラー:', error)
     return NextResponse.json(

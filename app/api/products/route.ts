@@ -1,26 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// v3.0: Products APIはItems APIへリダイレクト
-// 後方互換性のため維持
+function buildProxyHeaders(request: NextRequest) {
+  const headers = new Headers()
+  const cookie = request.headers.get('cookie')
+  const authorization = request.headers.get('authorization')
 
-// GET /api/products -> /api/items?type=product
+  if (cookie) {
+    headers.set('cookie', cookie)
+  }
+  if (authorization) {
+    headers.set('authorization', authorization)
+  }
+
+  return headers
+}
+
+function mapProductListResponse(payload: unknown) {
+  if (!payload || typeof payload !== 'object') {
+    return payload
+  }
+
+  const data = payload as Record<string, unknown>
+  if (!Array.isArray(data.items)) {
+    return payload
+  }
+
+  const { items, ...rest } = data
+  return {
+    products: items,
+    ...rest,
+  }
+}
+
+// GET /api/products -> /api/items?type=product (compat: { products, pagination })
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const newUrl = new URL('/api/items', request.url)
   newUrl.searchParams.set('type', 'product')
 
-  // 既存のクエリパラメータをコピー
   searchParams.forEach((value, key) => {
     newUrl.searchParams.set(key, value)
   })
 
-  return NextResponse.redirect(newUrl, { status: 307 })
+  const response = await fetch(newUrl, {
+    method: 'GET',
+    headers: buildProxyHeaders(request),
+  })
+
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) {
+    return NextResponse.json(payload, { status: response.status })
+  }
+
+  return NextResponse.json(mapProductListResponse(payload), { status: response.status })
 }
 
 // POST /api/products -> /api/items (itemType=PRODUCT)
-// 注: POSTリクエストはリダイレクトできないため、直接Items APIを呼び出す
 export async function POST(request: NextRequest) {
-  // Items APIへのプロキシ
   const newUrl = new URL('/api/items', request.url)
   return NextResponse.redirect(newUrl, { status: 307 })
 }
