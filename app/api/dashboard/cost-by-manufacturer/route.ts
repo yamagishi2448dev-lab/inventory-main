@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { authenticateRequest } from '@/lib/auth/middleware'
 
+// v3.0 メーカー別原価API - Items統合版
+// 注: 原価は商品（PRODUCT）のみ集計（委託品のcostPriceはnull）
 export async function GET(request: Request) {
     const auth = await authenticateRequest()
     if (!auth.success) {
@@ -13,6 +15,7 @@ export async function GET(request: Request) {
 
     try {
         // DB側でGROUP BYとSORT（最適化）
+        // itemsテーブルから商品（PRODUCT）のみ集計
         let data: Array<{
             manufacturerId: string,
             manufacturerName: string,
@@ -24,11 +27,13 @@ export async function GET(request: Request) {
                 SELECT
                     m.id as "manufacturerId",
                     m.name as "manufacturerName",
-                    COALESCE(SUM(p."costPrice" * p.quantity), 0) as "totalCost"
+                    COALESCE(SUM(i."costPrice" * i.quantity), 0) as "totalCost"
                 FROM manufacturers m
-                LEFT JOIN products p ON p."manufacturerId" = m.id
+                LEFT JOIN items i ON i."manufacturerId" = m.id
+                    AND i."itemType" = 'PRODUCT'
+                    AND i."costPrice" IS NOT NULL
                 GROUP BY m.id, m.name
-                HAVING COALESCE(SUM(p."costPrice" * p.quantity), 0) > 0
+                HAVING COALESCE(SUM(i."costPrice" * i.quantity), 0) > 0
                 ORDER BY "totalCost" ASC
             `
         } else {
@@ -36,11 +41,13 @@ export async function GET(request: Request) {
                 SELECT
                     m.id as "manufacturerId",
                     m.name as "manufacturerName",
-                    COALESCE(SUM(p."costPrice" * p.quantity), 0) as "totalCost"
+                    COALESCE(SUM(i."costPrice" * i.quantity), 0) as "totalCost"
                 FROM manufacturers m
-                LEFT JOIN products p ON p."manufacturerId" = m.id
+                LEFT JOIN items i ON i."manufacturerId" = m.id
+                    AND i."itemType" = 'PRODUCT'
+                    AND i."costPrice" IS NOT NULL
                 GROUP BY m.id, m.name
-                HAVING COALESCE(SUM(p."costPrice" * p.quantity), 0) > 0
+                HAVING COALESCE(SUM(i."costPrice" * i.quantity), 0) > 0
                 ORDER BY "totalCost" DESC
             `
         }

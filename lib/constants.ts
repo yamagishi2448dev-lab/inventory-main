@@ -29,6 +29,9 @@ export const CONSIGNMENT_SELECTION_STORAGE_KEY = 'inventory_consignment_selectio
 /** 委託品印刷選択情報の保存キー (v2.1) */
 export const CONSIGNMENT_PRINT_SELECTION_STORAGE_KEY = 'inventory_consignment_print_selection'
 
+/** アイテム選択状態の保存キー (v3.0) */
+export const ITEM_SELECTION_STORAGE_KEY = 'inventory_item_selection'
+
 // ==========================================
 // セッション・認証
 // ==========================================

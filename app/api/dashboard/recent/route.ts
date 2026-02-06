@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db/prisma'
 import { authenticateRequest } from '@/lib/auth/middleware'
 import { DASHBOARD_RECENT_ITEMS } from '@/lib/constants'
 
-// v2.0 Dashboard Recent API
+// v3.0 Dashboard Recent API - Items統合版
 export async function GET() {
   // 認証チェック
   const auth = await authenticateRequest()
@@ -12,12 +12,13 @@ export async function GET() {
   }
 
   try {
-    // 最近追加された商品
-    const recentlyAdded = await prisma.product.findMany({
+    // 最近追加されたアイテム（商品・委託品）
+    const recentlyAdded = await prisma.item.findMany({
       select: {
         id: true,
         name: true,
         sku: true,
+        itemType: true,
         quantity: true,
         createdAt: true,
         category: {
@@ -37,12 +38,13 @@ export async function GET() {
       take: DASHBOARD_RECENT_ITEMS,
     })
 
-    // 最近更新された商品
-    const recentlyUpdated = await prisma.product.findMany({
+    // 最近更新されたアイテム（商品・委託品）
+    const recentlyUpdated = await prisma.item.findMany({
       select: {
         id: true,
         name: true,
         sku: true,
+        itemType: true,
         quantity: true,
         updatedAt: true,
         category: {

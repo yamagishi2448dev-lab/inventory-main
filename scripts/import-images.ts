@@ -1,5 +1,5 @@
 /**
- * 商品画像一括インポートスクリプト
+ * アイテム画像一括インポートスクリプト
  *
  * 使い方:
  *   npx tsx scripts/import-images.ts <画像フォルダのパス>
@@ -10,7 +10,7 @@
  *   │   ├── 1.jpg    → メイン画像 (order: 0)
  *   │   ├── 2.jpg    → 2枚目 (order: 1)
  *   │   └── 3.png    → 3枚目 (order: 2)
- *   ├── SKU-00002/
+ *   ├── CSG-00001/
  *   │   └── 1.webp
  *   └── ...
  *
@@ -36,7 +36,7 @@ interface ImportResult {
 
 async function importImages(sourceDir: string): Promise<void> {
   console.log('========================================')
-  console.log('商品画像一括インポート')
+  console.log('アイテム画像一括インポート')
   console.log('========================================')
   console.log(`ソースフォルダ: ${sourceDir}`)
   console.log('')
@@ -77,27 +77,27 @@ async function importImages(sourceDir: string): Promise<void> {
     const sku = skuFolder // フォルダ名がSKU
     const skuPath = path.join(sourceDir, skuFolder)
 
-    // 商品の存在確認
-    const product = await prisma.product.findUnique({
+    // アイテムの存在確認
+    const item = await prisma.item.findUnique({
       where: { sku },
       include: { images: true },
     })
 
-    if (!product) {
-      console.log(`[スキップ] ${sku}: 商品が見つかりません`)
+    if (!item) {
+      console.log(`[スキップ] ${sku}: アイテムが見つかりません`)
       results.push({
         sku,
         success: false,
         imagesImported: 0,
-        error: '商品が見つかりません',
+        error: 'アイテムが見つかりません',
       })
       totalSkipped++
       continue
     }
 
     // 既存画像がある場合は警告
-    if (product.images.length > 0) {
-      console.log(`[警告] ${sku}: 既存の画像が${product.images.length}件あります。追加します。`)
+    if (item.images.length > 0) {
+      console.log(`[警告] ${sku}: 既存の画像が${item.images.length}件あります。追加します。`)
     }
 
     // フォルダ内の画像ファイルを取得
@@ -130,8 +130,8 @@ async function importImages(sourceDir: string): Promise<void> {
 
     // 画像をコピーしてDBに登録
     let importedCount = 0
-    const existingMaxOrder = product.images.length > 0
-      ? Math.max(...product.images.map((img) => img.order))
+    const existingMaxOrder = item.images.length > 0
+      ? Math.max(...item.images.map((img) => img.order))
       : -1
 
     try {
@@ -150,9 +150,9 @@ async function importImages(sourceDir: string): Promise<void> {
         fs.copyFileSync(sourcePath, destPath)
 
         // DBに登録
-        await prisma.productImage.create({
+        await prisma.itemImage.create({
           data: {
-            productId: product.id,
+            itemId: item.id,
             url: `/uploads/${newFilename}`,
             order: existingMaxOrder + 1 + i,
           },
@@ -193,7 +193,7 @@ async function importImages(sourceDir: string): Promise<void> {
   console.log(`インポート画像数: ${totalImported}件`)
 
   // エラーがあった場合は一覧を表示
-  const errors = results.filter((r) => !r.success && r.error !== '商品が見つかりません' && r.error !== '画像ファイルがありません')
+  const errors = results.filter((r) => !r.success && r.error !== 'アイテムが見つかりません' && r.error !== '画像ファイルがありません')
   if (errors.length > 0) {
     console.log('')
     console.log('エラー詳細:')
@@ -210,15 +210,16 @@ const args = process.argv.slice(2)
 if (args.length === 0) {
   console.log('使い方: npx tsx scripts/import-images.ts <画像フォルダのパス>')
   console.log('')
-  console.log('例: npx tsx scripts/import-images.ts ./product-images')
+  console.log('例: npx tsx scripts/import-images.ts ./item-images')
   console.log('')
   console.log('フォルダ構成:')
-  console.log('  product-images/')
+  console.log('  item-images/')
   console.log('  ├── SKU-00001/')
   console.log('  │   ├── 1.jpg')
   console.log('  │   └── 2.jpg')
-  console.log('  └── SKU-00002/')
-  console.log('      └── 1.png')
+  console.log('  ├── CSG-00001/')
+  console.log('  │   └── 1.png')
+  console.log('  └── ...')
   process.exit(1)
 }
 

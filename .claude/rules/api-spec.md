@@ -1,4 +1,4 @@
-# API Spec (v2.3)
+# API Spec (v3.0)
 
 ## Common Rules
 - Base: `/api`
@@ -61,25 +61,29 @@
 
 ---
 
-## Products（商品）
+## Items（アイテム）⭐ v3.0 統合API
 
-### GET `/api/products`
-商品一覧取得。
+> v3.0で商品（Product）と委託品（Consignment）を統合。
+> `type` パラメータで種別を指定。
+
+### GET `/api/items`
+アイテム一覧取得。
 - Query:
   - `page`: ページ番号（デフォルト: 1）
   - `limit`: 件数（デフォルト: 20）
-  - `search`: 商品名/仕様で検索
+  - `type`: アイテム種別フィルタ（`PRODUCT` | `CONSIGNMENT`）
+  - `search`: アイテム名/仕様で検索
   - `manufacturerId`: メーカーでフィルタ
   - `categoryId`: 品目でフィルタ
   - `locationId`: 場所でフィルタ
   - `tagIds`: タグでフィルタ（カンマ区切り、OR条件）
-  - `isSold`: 販売済みフィルタ（true/false）
-  - `sortField`: ソートフィールド
+  - `includeSold`: 販売済みを含む（true/false）
+  - `sortBy`: ソートフィールド（name, manufacturer, category, location, quantity, costPrice, specification）
   - `sortOrder`: asc/desc
 - Response:
 ```json
 {
-  "products": [...],
+  "items": [...],
   "pagination": {
     "total": 100,
     "page": 1,
@@ -89,54 +93,65 @@
 }
 ```
 
-### GET `/api/products/:id`
-商品詳細取得。
-- Response: 商品オブジェクト（images, materials, tags含む）
+### GET `/api/items/:id`
+アイテム詳細取得。
+- Response: アイテムオブジェクト（images, materials, tags含む、totalCost計算済み）
 
-### POST `/api/products`
-商品作成。SKUは自動採番。
-- Body: 商品データ（name, costPrice必須）
-- Response: `{ success: true, product: {...} }`
+### POST `/api/items`
+アイテム作成。SKUは自動採番。
+- Body:
+```json
+{
+  "itemType": "PRODUCT",
+  "name": "商品名",
+  "costPrice": "10000",
+  "manufacturerId": "...",
+  "categoryId": "...",
+  "images": [{ "url": "...", "order": 0 }],
+  "tagIds": ["tag-id-1"]
+}
+```
+- 商品（PRODUCT）: costPrice必須
+- 委託品（CONSIGNMENT）: costPrice=null
+- Response: `{ success: true, item: {...} }`
 
-### PUT `/api/products/:id`
-商品更新。
-- Body: 更新データ
-- Response: `{ success: true, product: {...} }`
+### PUT `/api/items/:id`
+アイテム更新。SKUとitemTypeは編集不可。
+- Body: 更新データ（images, tagIdsも含む）
+- Response: `{ success: true, item: {...} }`
 
-### DELETE `/api/products/:id`
-商品削除（物理削除）。
-- Response: `{ success: true }`
+### DELETE `/api/items/:id`
+アイテム削除（物理削除）。画像はCloudinaryからも削除。
+- Response: `{ success: true, message: "..." }`
 
-### PATCH `/api/products/:id/stock`
-在庫数更新。
-- Body: `{ quantity: number }`
-- Response: `{ success: true, product: {...} }`
-
-### DELETE `/api/products/:id/images/:imageId`
-商品画像削除。
-- Response: `{ success: true }`
-
-### GET `/api/products/ids`
-商品IDリスト取得（フィルタ適用可能）。
-- Query: GET `/api/products`と同じフィルタ
+### GET `/api/items/ids`
+アイテムIDリスト取得（フィルタ適用可能）。
+- Query: GET `/api/items`と同じフィルタ
 - Response: `{ ids: ["id1", "id2", ...] }`
 
-### POST `/api/products/:id/materials`
-商品に素材情報を追加。
-- Body: `{ materialTypeId, description?, imageUrl?, order? }`
-- Response: `{ success: true, material: {...} }`
+### PUT `/api/items/:id/materials`
+アイテムの素材情報を一括更新。
+- Body:
+```json
+{
+  "materials": [
+    { "materialTypeId": "...", "description": "...", "imageUrl": "...", "order": 0 }
+  ]
+}
+```
+- Response: `{ success: true, materials: [...] }`
 
 ---
 
-## Products Bulk（商品一括操作）
+## Items Bulk（アイテム一括操作）
 
-### POST `/api/products/bulk/delete`
-商品一括削除（最大100件）。
+### POST `/api/items/bulk/delete`
+アイテム一括削除（最大100件）。
 - Body: `{ ids: ["id1", "id2", ...] }`
-- Response: `{ success: true, deletedCount: 5 }`
+- Response: `{ success: true, message: "..." }`
 
-### POST `/api/products/bulk/edit`
-商品一括編集。
+### POST `/api/items/bulk/edit`
+アイテム一括編集。
 - Body:
 ```json
 {
@@ -151,25 +166,26 @@
 }
 ```
 - quantity.mode: `set`（設定）または `adjust`（増減）
-- Response: `{ success: true, updatedCount: 2 }`
+- Response: `{ success: true, message: "..." }`
 
 ---
 
-## Products CSV（商品CSV）
+## Items CSV（アイテムCSV）
 
-### GET `/api/products/export`
-商品CSVエクスポート。
-- Query: GET `/api/products`と同じフィルタ
+### GET `/api/items/export`
+アイテムCSVエクスポート。
+- Query: GET `/api/items`と同じフィルタ + `type`
 - Response: CSV（BOM付きUTF-8、日本語ヘッダー）
-- ヘッダー: ID, SKU, 商品名, メーカー, 品目, 仕様, サイズ, 張地/カラー, 個数, 単位, 原価単価, 定価単価, 入荷年月, 場所, デザイナー, タグ, 備考, 販売済み, 販売日時, 作成日時, 更新日時
+- ヘッダー: ID, SKU, 種別, 商品名, メーカー, 品目, 仕様, サイズ, 張地/カラー, 個数, 単位, 原価単価, 定価単価, 入荷年月, 場所, デザイナー, タグ, 備考, 販売済み, 販売日時, 作成日時, 更新日時
+- 種別: 商品/委託品
 - タグ: パイプ区切り（例: `タグ1|タグ2|タグ3`）
 
-### GET `/api/products/import/template`
+### GET `/api/items/import/template`
 CSVインポートテンプレート取得。
 - Response: 空のCSVテンプレート
 
-### POST `/api/products/import`
-商品CSVインポート。
+### POST `/api/items/import`
+アイテムCSVインポート。
 - Body: `multipart/form-data` with CSV file
 - Response:
 ```json
@@ -185,101 +201,62 @@ CSVインポートテンプレート取得。
 
 ---
 
-## Products Print（商品印刷）
+## Items Print（アイテム印刷）
 
-### GET `/api/products/print`
+### GET `/api/items/print`
 印刷用データ取得。
-- Query: `ids` - カンマ区切りの商品ID
-- Response: 商品配列（印刷に必要な情報のみ）
+- Query: `ids` - カンマ区切りのアイテムID
+- Response: `{ items: [...] }`（印刷に必要な情報のみ）
 
 ---
 
-## Consignments（委託品）
+## Legacy API（v2.x互換、リダイレクト）
 
-商品APIと同等の構造。costPriceは常に0。SKUはCSG-形式。
+> 以下のエンドポイントは307リダイレクトで `/api/items` へ転送されます。
 
-### GET `/api/consignments`
-委託品一覧取得。Query: `/api/products`と同じ。
+### Products（商品）→ `/api/items?type=PRODUCT`
+- `/api/products` → `/api/items?type=PRODUCT`
+- `/api/products/:id` → `/api/items/:id`
+- `/api/products/bulk/*` → `/api/items/bulk/*`
+- `/api/products/export` → `/api/items/export?type=PRODUCT`
+- `/api/products/import/*` → `/api/items/import/*`
+- `/api/products/print` → `/api/items/print`
 
-### GET `/api/consignments/:id`
-委託品詳細取得。
-
-### POST `/api/consignments`
-委託品作成。SKUは自動採番（CSG-形式）。
-
-### PUT `/api/consignments/:id`
-委託品更新。
-
-### DELETE `/api/consignments/:id`
-委託品削除。
-
-### GET `/api/consignments/ids`
-委託品IDリスト取得。
-
-### POST `/api/consignments/:id/materials`
-委託品に素材情報を追加。
-
-### POST `/api/consignments/:id/images`
-委託品に画像を追加。
-
----
-
-## Consignments Bulk（委託品一括操作）
-
-### POST `/api/consignments/bulk`
-委託品一括削除。
-- Body: `{ ids: [...] }`
-
-### POST `/api/consignments/bulk/edit`
-委託品一括編集。Body: `/api/products/bulk/edit`と同じ。
-
----
-
-## Consignments CSV（委託品CSV）
-
-### GET `/api/consignments/export`
-委託品CSVエクスポート。
-
-### GET `/api/consignments/import/template`
-CSVインポートテンプレート取得。
-
-### POST `/api/consignments/import`
-委託品CSVインポート。
-
----
-
-## Consignments Print（委託品印刷）
-
-### GET `/api/consignments/print`
-印刷用データ取得。
+### Consignments（委託品）→ `/api/items?type=CONSIGNMENT`
+- `/api/consignments` → `/api/items?type=CONSIGNMENT`
+- `/api/consignments/:id` → `/api/items/:id`
+- `/api/consignments/bulk/*` → `/api/items/bulk/*`
+- `/api/consignments/export` → `/api/items/export?type=CONSIGNMENT`
+- `/api/consignments/import/*` → `/api/items/import/*`
+- `/api/consignments/print` → `/api/items/print`
 
 ---
 
 ## Master Data（マスタデータ）
 
 ### Manufacturers（メーカー）
-- GET `/api/manufacturers` - 一覧（_count含む）
+- GET `/api/manufacturers` - 一覧（_count.items含む）
 - POST `/api/manufacturers` - 作成
 - GET `/api/manufacturers/:id` - 詳細
 - PUT `/api/manufacturers/:id` - 更新
 - DELETE `/api/manufacturers/:id` - 削除（参照SetNull）
 
 ### Categories（品目）
-- GET `/api/categories` - 一覧
+- GET `/api/categories` - 一覧（_count.items含む）
 - POST `/api/categories` - 作成
 - GET `/api/categories/:id` - 詳細
 - PUT `/api/categories/:id` - 更新
 - DELETE `/api/categories/:id` - 削除
 
 ### Locations（場所）
-- GET `/api/locations` - 一覧
+- GET `/api/locations` - 一覧（_count.items含む）
 - POST `/api/locations` - 作成
 - GET `/api/locations/:id` - 詳細
 - PUT `/api/locations/:id` - 更新
 - DELETE `/api/locations/:id` - 削除
 
 ### Units（単位）
-- GET `/api/units` - 一覧
+- GET `/api/units` - 一覧（_count.items含む）
 - POST `/api/units` - 作成
 - GET `/api/units/:id` - 詳細
 - PUT `/api/units/:id` - 更新
@@ -291,7 +268,7 @@ CSVインポートテンプレート取得。
 
 ### GET `/api/tags`
 タグ一覧取得。
-- Response: `[{ id, name, _count: { products, consignments } }, ...]`
+- Response: `[{ id, name, _count: { itemTags } }, ...]`
 
 ### POST `/api/tags`
 タグ作成。
@@ -405,14 +382,12 @@ CSVインポートテンプレート取得。
 | カテゴリ | エンドポイント数 |
 |---------|-----------------|
 | Auth | 4 |
-| Products | 9 |
-| Products Bulk | 2 |
-| Products CSV | 3 |
-| Products Print | 1 |
-| Consignments | 8 |
-| Consignments Bulk | 2 |
-| Consignments CSV | 3 |
-| Consignments Print | 1 |
+| Items | 7 |
+| Items Bulk | 2 |
+| Items CSV | 3 |
+| Items Print | 1 |
+| Legacy Products (redirect) | 9 |
+| Legacy Consignments (redirect) | 8 |
 | Manufacturers | 5 |
 | Categories | 5 |
 | Locations | 5 |
@@ -425,4 +400,4 @@ CSVインポートテンプレート取得。
 | Users | 5 |
 | Upload | 1 |
 | Filters | 1 |
-| **合計** | **約74** |
+| **合計** | **約75** |

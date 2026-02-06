@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/db/prisma'
+import type { ItemType } from '@/lib/types'
 
 export type ChangeLogAction = 'create' | 'update' | 'delete'
-export type ChangeLogEntityType = 'product' | 'consignment'
+export type ChangeLogEntityType = 'item' | 'product' | 'consignment'  // v3.0: 'item'が新標準
 
 interface ChangeLogField {
   field: string
@@ -19,13 +20,14 @@ interface CreateChangeLogParams {
   changes?: ChangeLogField[]
   userId: string
   userName: string
+  itemType?: ItemType | string  // v3.0追加: 商品/委託品の区別
 }
 
 /**
  * 変更履歴を保存する
  */
 export async function createChangeLog(params: CreateChangeLogParams): Promise<void> {
-  const { entityType, entityId, entityName, entitySku, action, changes, userId, userName } = params
+  const { entityType, entityId, entityName, entitySku, action, changes, userId, userName, itemType } = params
 
   try {
     await prisma.changeLog.create({
@@ -38,6 +40,7 @@ export async function createChangeLog(params: CreateChangeLogParams): Promise<vo
         changes: changes ? JSON.stringify({ fields: changes }) : null,
         userId,
         userName,
+        itemType: itemType || null,  // v3.0追加
       },
     })
   } catch (error) {

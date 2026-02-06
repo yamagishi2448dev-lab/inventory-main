@@ -50,16 +50,12 @@ async function main() {
   console.log('🗑️  Clearing existing data...')
 
   // 既存データをすべて削除（順序に注意）
-  await prisma.productTag.deleteMany()
-  await prisma.consignmentTag.deleteMany()
+  await prisma.itemTag.deleteMany()
   await prisma.tag.deleteMany()
-  await prisma.productMaterial.deleteMany()
-  await prisma.consignmentMaterial.deleteMany()
+  await prisma.itemMaterial.deleteMany()
   await prisma.materialType.deleteMany()
-  await prisma.productImage.deleteMany()
-  await prisma.consignmentImage.deleteMany()
-  await prisma.product.deleteMany()
-  await prisma.consignment.deleteMany()
+  await prisma.itemImage.deleteMany()
+  await prisma.item.deleteMany()
   await prisma.manufacturer.deleteMany()
   await prisma.category.deleteMany()
   await prisma.location.deleteMany()
@@ -156,15 +152,36 @@ async function main() {
   })
   console.log('✓ Created tag: 玉家建設用')
 
-  // 9. SKU採番用の初期設定
+  // 9. システム設定の初期値
   await prisma.systemSetting.create({
     data: { key: 'next_product_sku', value: '1' },
   })
   await prisma.systemSetting.create({
     data: { key: 'next_consignment_sku', value: '1' },
   })
+  await prisma.systemSetting.create({
+    data: {
+      key: 'operation_rules',
+      value: [
+        '【在庫管理ルール】',
+        '・入荷時は必ず個数と場所を登録する',
+        '・原価単価は税抜き価格で入力する',
+        '・販売済み商品は「販売済み」に切り替える',
+        '・委託品の原価は登録不要（自動でnull）',
+        '',
+        '【画像登録】',
+        '・1枚目にメイン画像を設定する',
+        '・最大5枚まで登録可能',
+        '',
+        '【CSV入出力】',
+        '・タグはパイプ「|」で区切る',
+        '・インポート時、存在しないマスタは自動作成される',
+      ].join('\n'),
+    },
+  })
+  console.log('✓ Created system settings (SKU counters, operation rules)')
 
-  // 10. 商品データ作成
+  // 10. 商品データ作成（Itemテーブル、itemType=PRODUCT）
   let skuCounter = 1
   let productCount = 0
 
@@ -186,9 +203,10 @@ async function main() {
     const sku = `SKU-${String(skuCounter).padStart(5, '0')}`
     skuCounter++
 
-    await prisma.product.create({
+    await prisma.item.create({
       data: {
         sku,
+        itemType: 'PRODUCT',
         name,
         manufacturerId: manufacturer ? manufacturerMap.get(manufacturer) : null,
         categoryId: category ? categoryMap.get(category) : null,
@@ -213,14 +231,13 @@ async function main() {
   })
   console.log(`✓ Created ${productCount} products (from ${validRecords.length} valid records)`)
 
-  // 11. 委託品テストデータ3件作成
+  // 11. 委託品テストデータ3件作成（Itemテーブル、itemType=CONSIGNMENT）
   const consignmentData = [
     {
       sku: 'CSG-00001',
       name: '委託ソファ（サンプル）',
       specification: '2人掛け',
       quantity: 1,
-      costPrice: 0,
       listPrice: 120000,
       notes: '委託品テストデータ',
     },
@@ -229,7 +246,6 @@ async function main() {
       name: '委託テーブル（サンプル）',
       specification: 'W1400×D800',
       quantity: 1,
-      costPrice: 0,
       listPrice: 85000,
       notes: '委託品テストデータ',
     },
@@ -238,20 +254,20 @@ async function main() {
       name: '委託チェア（サンプル）',
       specification: 'ダイニングチェア',
       quantity: 2,
-      costPrice: 0,
       listPrice: 45000,
       notes: '委託品テストデータ',
     },
   ]
 
   for (const data of consignmentData) {
-    const consignment = await prisma.consignment.create({
+    const item = await prisma.item.create({
       data: {
         sku: data.sku,
+        itemType: 'CONSIGNMENT',
         name: data.name,
         specification: data.specification,
         quantity: data.quantity,
-        costPrice: data.costPrice,
+        costPrice: null,
         listPrice: data.listPrice,
         notes: data.notes,
         locationId: locationMap.get('SRバックヤード') || null,
@@ -259,9 +275,9 @@ async function main() {
       },
     })
     // タグを紐付け
-    await prisma.consignmentTag.create({
+    await prisma.itemTag.create({
       data: {
-        consignmentId: consignment.id,
+        itemId: item.id,
         tagId: tag.id,
       },
     })

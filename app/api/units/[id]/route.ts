@@ -24,7 +24,7 @@ export async function GET(
         const params = await context.params
         const unit = await prisma.unit.findUnique({
             where: { id: params.id },
-            include: { _count: { select: { products: true } } },
+            include: { _count: { select: { items: true } } },
         })
 
         if (!unit) {

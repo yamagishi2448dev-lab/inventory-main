@@ -1,4 +1,4 @@
-// This is your Prisma schema file - v2.1
+// This is your Prisma schema file - v3.0 (Item統合)
 
 generator client {
   provider = "prisma-client-js"
@@ -37,167 +37,20 @@ model Session {
   @@map("sessions")
 }
 
-// 商品 v2.3
-model Product {
-  id             String         @id @default(cuid())
-  sku            String         @unique  // 自動採番: SKU-00001形式
-  name           String                  // 商品名（必須）
-  manufacturerId String?                 // メーカーID
-  categoryId     String?                 // 品目ID
-  specification  String?                 // 仕様（自由テキスト）
-  size           String?                 // サイズ（v2.1追加）
-  fabricColor    String?                 // 張地/カラー（複数行テキスト）
-  quantity       Int            @default(0)  // 個数（旧stock）
-  unitId         String?                 // 単位ID
-  costPrice      Decimal        // 原価単価（必須）
-  listPrice      Decimal?       // 定価単価
-  arrivalDate    String?                 // 入荷年月（例: "2024年1月"）
-  locationId     String?                 // 場所ID
-  designer       String?                 // デザイナー（v2.3追加）
-  notes          String?                 // 備考
-  isSold         Boolean        @default(false)  // 販売済みフラグ（v2.1追加）
-  soldAt         DateTime?               // 販売済み日時（v2.1追加）
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
-  manufacturer Manufacturer?   @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
-  category     Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  unit         Unit?           @relation(fields: [unitId], references: [id], onDelete: SetNull)
-  location     Location?       @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  images       ProductImage[]
-  materials    ProductMaterial[]  // 素材情報（v2.1追加）
-  tags         ProductTag[]       // タグ（v2.2追加）
-
-  @@index([manufacturerId])
-  @@index([categoryId])
-  @@index([locationId])
-  @@index([unitId])
-  @@index([name])
-  @@index([sku])
-  @@index([isSold])
-  @@map("products")
-}
-
-// メーカー（旧Supplier）
-model Manufacturer {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  products     Product[]
-  consignments Consignment[]  // v2.1追加
-
-  @@map("manufacturers")
-}
-
-// 品目（旧Category、用途変更）
-model Category {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  products     Product[]
-  consignments Consignment[]  // v2.1追加
-
-  @@map("categories")
-}
-
-// 場所（旧Tag）
-model Location {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  products     Product[]
-  consignments Consignment[]  // v2.1追加
-
-  @@map("locations")
-}
-
-// 単位
-model Unit {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  products     Product[]
-  consignments Consignment[]  // v2.1追加
-
-  @@map("units")
-}
-
-// 商品画像
-model ProductImage {
-  id        String  @id @default(cuid())
-  productId String
-  url       String
-  order     Int     @default(0)
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-  @@map("product_images")
-}
-
 // ============================================
-// v2.1 新規モデル
+// v3.0 Item統合モデル（Product + Consignment統合）
 // ============================================
 
-// 素材項目マスタ（v2.1追加）
-model MaterialType {
-  id        String   @id @default(cuid())
-  name      String   @unique  // 張地、木部、脚部など
-  order     Int      @default(0)  // 表示順
-  createdAt DateTime @default(now())
-
-  materials            ProductMaterial[]
-  consignmentMaterials ConsignmentMaterial[]
-
-  @@map("material_types")
+enum ItemType {
+  PRODUCT
+  CONSIGNMENT
 }
 
-// 商品素材（v2.1追加）
-model ProductMaterial {
-  id             String   @id @default(cuid())
-  productId      String
-  materialTypeId String
-  description    String?  // 説明（自由記述）
-  imageUrl       String?  // 画像URL（1枚）
-  order          Int      @default(0)  // 表示順
-  createdAt      DateTime @default(now())
-
-  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  materialType MaterialType @relation(fields: [materialTypeId], references: [id])
-
-  @@index([productId])
-  @@index([materialTypeId])
-  @@map("product_materials")
-}
-
-// システム設定（v2.1追加）
-model SystemSetting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
-  updatedAt DateTime @updatedAt
-
-  @@map("system_settings")
-}
-
-// 変更履歴（v2.1追加）
-model ChangeLog {
-  id         String   @id @default(cuid())
-  entityType String   // "product" | "consignment"
-  entityId   String   // 商品ID または 委託品ID
-  entityName String   // 商品名（削除後も表示するため保存）
-  entitySku  String   // SKU（削除後も表示するため保存）
-  action     String   // "create" | "update" | "delete"
-  changes    String?  // 変更内容の詳細（JSON形式）
-  userId     String
-  userName   String   // ユーザー名（削除後も表示するため保存）
-  createdAt  DateTime @default(now())
-
-  @@index([entityType])
-  @@index([createdAt])
-  @@map("change_logs")
-}
-
-// 委託品（v2.1追加、v2.3更新）
-model Consignment {
+// アイテム（商品・委託品統合）
+model Item {
   id             String    @id @default(cuid())
-  sku            String    @unique  // 自動採番: CSG-00001形式
+  sku            String    @unique  // 自動採番: SKU-00001 または CSG-00001
+  itemType       ItemType  @default(PRODUCT)  // 商品 or 委託品
   name           String              // 商品名（必須）
   manufacturerId String?             // メーカーID
   categoryId     String?             // 品目ID
@@ -206,11 +59,11 @@ model Consignment {
   fabricColor    String?             // 張地/カラー（複数行テキスト）
   quantity       Int       @default(0)  // 個数
   unitId         String?             // 単位ID
-  costPrice      Decimal   // 原価単価（常に0）
-  listPrice      Decimal?  // 定価単価
-  arrivalDate    String?             // 入荷年月
+  costPrice      Decimal?            // 原価単価（商品:必須, 委託品:null）
+  listPrice      Decimal?            // 定価単価
+  arrivalDate    String?             // 入荷年月（例: "2024年1月"）
   locationId     String?             // 場所ID
-  designer       String?             // デザイナー（v2.3追加）
+  designer       String?             // デザイナー
   notes          String?             // 備考
   isSold         Boolean   @default(false)  // 販売済みフラグ
   soldAt         DateTime?           // 販売済み日時
@@ -221,10 +74,11 @@ model Consignment {
   category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   unit         Unit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
   location     Location?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  images       ConsignmentImage[]
-  materials    ConsignmentMaterial[]
-  tags         ConsignmentTag[]       // タグ（v2.2追加）
+  images       ItemImage[]
+  materials    ItemMaterial[]
+  tags         ItemTag[]
 
+  @@index([itemType])
   @@index([manufacturerId])
   @@index([categoryId])
   @@index([locationId])
@@ -232,84 +86,149 @@ model Consignment {
   @@index([name])
   @@index([sku])
   @@index([isSold])
-  @@map("consignments")
+  @@map("items")
 }
 
-// 委託品画像（v2.1追加）
-model ConsignmentImage {
-  id            String @id @default(cuid())
-  consignmentId String
-  url           String
-  order         Int    @default(0)
+// アイテム画像
+model ItemImage {
+  id     String @id @default(cuid())
+  itemId String
+  url    String
+  order  Int    @default(0)
 
-  consignment Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
-  @@index([consignmentId])
-  @@map("consignment_images")
+  @@index([itemId])
+  @@map("item_images")
 }
 
-// 委託品素材（v2.1追加）
-model ConsignmentMaterial {
+// アイテム素材
+model ItemMaterial {
   id             String   @id @default(cuid())
-  consignmentId  String
+  itemId         String
   materialTypeId String
   description    String?  // 説明（自由記述）
   imageUrl       String?  // 画像URL（1枚）
   order          Int      @default(0)  // 表示順
   createdAt      DateTime @default(now())
 
-  consignment  Consignment  @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+  item         Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
   materialType MaterialType @relation(fields: [materialTypeId], references: [id])
 
-  @@index([consignmentId])
+  @@index([itemId])
   @@index([materialTypeId])
-  @@map("consignment_materials")
+  @@map("item_materials")
+}
+
+// アイテム-タグ中間テーブル
+model ItemTag {
+  id        String   @id @default(cuid())
+  itemId    String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, tagId])
+  @@index([itemId])
+  @@index([tagId])
+  @@map("item_tags")
 }
 
 // ============================================
-// v2.2 タグ機能
+// マスタデータ
 // ============================================
 
-// タグ（v2.2追加）
+// メーカー（旧Supplier）
+model Manufacturer {
+  id    String @id @default(cuid())
+  name  String @unique
+  items Item[]
+
+  @@map("manufacturers")
+}
+
+// 品目
+model Category {
+  id    String @id @default(cuid())
+  name  String @unique
+  items Item[]
+
+  @@map("categories")
+}
+
+// 場所
+model Location {
+  id    String @id @default(cuid())
+  name  String @unique
+  items Item[]
+
+  @@map("locations")
+}
+
+// 単位
+model Unit {
+  id    String @id @default(cuid())
+  name  String @unique
+  items Item[]
+
+  @@map("units")
+}
+
+// タグ
 model Tag {
   id           String           @id @default(cuid())
   name         String           @unique
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
-  products     ProductTag[]
-  consignments ConsignmentTag[]
+  items        ItemTag[]
 
   @@map("tags")
 }
 
-// 商品-タグ中間テーブル（v2.2追加）
-model ProductTag {
+// 素材項目マスタ
+model MaterialType {
   id        String   @id @default(cuid())
-  productId String
-  tagId     String
+  name      String   @unique  // 張地、木部、脚部など
+  order     Int      @default(0)  // 表示順
   createdAt DateTime @default(now())
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  materials            ItemMaterial[]
 
-  @@unique([productId, tagId])
-  @@index([productId])
-  @@index([tagId])
-  @@map("product_tags")
+  @@map("material_types")
 }
 
-// 委託品-タグ中間テーブル（v2.2追加）
-model ConsignmentTag {
-  id            String   @id @default(cuid())
-  consignmentId String
-  tagId         String
-  createdAt     DateTime @default(now())
+// ============================================
+// システム
+// ============================================
 
-  consignment Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
-  tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+// システム設定
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
 
-  @@unique([consignmentId, tagId])
-  @@index([consignmentId])
-  @@index([tagId])
-  @@map("consignment_tags")
+  @@map("system_settings")
 }
+
+// 変更履歴
+model ChangeLog {
+  id         String   @id @default(cuid())
+  entityType String   // "item"（統合後は"item"のみ、旧"product"/"consignment"も互換のため残存）
+  entityId   String   // アイテムID
+  entityName String   // 商品名（削除後も表示するため保存）
+  entitySku  String   // SKU（削除後も表示するため保存）
+  action     String   // "create" | "update" | "delete"
+  changes    String?  // 変更内容の詳細（JSON形式）
+  userId     String
+  userName   String   // ユーザー名（削除後も表示するため保存）
+  itemType   String?  // "PRODUCT" | "CONSIGNMENT"（v3.0追加、区別用）
+  createdAt  DateTime @default(now())
+
+  @@index([entityType])
+  @@index([createdAt])
+  @@map("change_logs")
+}
+

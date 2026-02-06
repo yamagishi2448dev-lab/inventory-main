@@ -1436,5 +1436,309 @@ Phase 1から順番に実装していきます。
 
 ---
 
-**最終更新日**: 2026-01-16
-**バージョン**: 2.2.0
+**最終更新日**: 2026-02-03
+**バージョン**: 3.0.0
+
+---
+
+## Phase 3.0: Item統合（v3.0）⏳
+
+### 概要
+商品（Product）と委託品（Consignment）のデータベース構造を統合し、単一の`Item`テーブルで管理する。
+
+### 設計決定事項
+| 項目 | 決定 | 理由 |
+|------|------|------|
+| URL構造 | `/items` に統合 | 委託品→在庫品への切替機能を将来実装予定 |
+| SKU形式 | 現行維持（SKU-/CSG-） | 既存データとの互換性、視覚的区別 |
+| フィルターUI | 分散型（商品ページ形式） | 各フィルターが独立、操作性良好 |
+| 変更履歴 | entityType='item' に統合 | URL構造に合わせる |
+
+---
+
+### 3.0-1 データベーススキーマ変更 ✅
+
+#### 新テーブル作成
+- [x] `prisma/schema.prisma`に新モデル追加
+  - `ItemType` enum（PRODUCT, CONSIGNMENT）
+  - `Item` モデル（統合テーブル）
+  - `ItemImage` モデル
+  - `ItemMaterial` モデル
+  - `ItemTag` モデル
+- [x] マスタデータモデルのリレーション更新
+  - `Manufacturer.items[]`
+  - `Category.items[]`
+  - `Location.items[]`
+  - `Unit.items[]`
+  - `Tag.itemTags[]`
+  - `MaterialType.itemMaterials[]`
+
+#### マイグレーション
+- [x] `prisma/migrations/20260202_unify_product_consignment/migration.sql` 作成
+  - 新テーブル作成（items, item_images, item_materials, item_tags）
+  - 既存データ移行（products → items, consignments → items）
+  - change_logs に itemType カラム追加
+- [ ] **マイグレーション実行待ち**: `npx prisma migrate deploy`
+
+---
+
+### 3.0-2 型定義・バリデーション ✅
+
+#### 型定義
+- [x] `lib/types.ts` 更新
+  - `ItemType` 型追加
+  - `Item` インターフェース追加
+  - `ItemFilters` インターフェース追加
+
+#### バリデーション
+- [x] `lib/validations/item.ts` 新規作成
+  - `baseItemFields` 共通フィールド
+  - `productItemSchema`（PRODUCT用、costPrice必須）
+  - `consignmentItemSchema`（CONSIGNMENT用、costPrice=null）
+  - `itemSchema` 判別用スキーマ
+  - `bulkDeleteSchema`, `bulkEditSchema`
+
+---
+
+### 3.0-3 API統合 ✅
+
+#### 新APIエンドポイント
+- [x] `app/api/items/route.ts`（GET, POST）
+- [x] `app/api/items/[id]/route.ts`（GET, PUT, DELETE）
+- [x] `app/api/items/[id]/images/route.ts`（POST）
+- [x] `app/api/items/[id]/images/[imageId]/route.ts`（DELETE）
+- [x] `app/api/items/[id]/materials/route.ts`（POST）
+- [x] `app/api/items/bulk/delete/route.ts`（POST）
+- [x] `app/api/items/bulk/edit/route.ts`（POST）
+- [x] `app/api/items/export/route.ts`（GET）
+- [x] `app/api/items/import/route.ts`（POST）
+- [x] `app/api/items/import/template/route.ts`（GET）
+- [x] `app/api/items/ids/route.ts`（GET）
+- [x] `app/api/items/print/route.ts`（GET）
+
+#### クエリビルダー
+- [x] `lib/items/query.ts` 新規作成
+  - `buildItemWhereClause()` フィルタ構築
+  - `buildItemOrderBy()` ソート構築
+
+#### 旧APIリダイレクト
+- [x] `app/api/products/*` → `/api/items?type=product` へ307リダイレクト
+- [x] `app/api/consignments/*` → `/api/items?type=consignment` へ307リダイレクト
+
+#### ダッシュボードAPI
+- [x] `app/api/dashboard/stats/route.ts` 更新済み（Items参照）
+- [x] `app/api/dashboard/cost-by-manufacturer/route.ts` 更新済み（Items参照）
+- [x] `app/api/dashboard/recent/route.ts` 更新済み（Items参照）
+
+#### マスタデータAPI
+- [x] `app/api/manufacturers/route.ts` 更新（_count.items）
+- [x] `app/api/categories/route.ts` 更新（_count.items）
+- [x] `app/api/locations/route.ts` 更新（_count.items）
+- [x] `app/api/units/route.ts` 更新（_count.items）
+- [x] `app/api/tags/route.ts` 更新（_count.itemTags）
+
+---
+
+### 3.0-4 UI統合 ✅
+
+#### 新ページ
+- [x] `app/(dashboard)/items/page.tsx` 一覧ページ
+- [x] `app/(dashboard)/items/new/page.tsx` 新規作成ページ
+- [x] `app/(dashboard)/items/[id]/page.tsx` 詳細ページ
+- [x] `app/(dashboard)/items/[id]/edit/page.tsx` 編集ページ（3.0-8で追加）
+- [x] `app/(dashboard)/items/print/page.tsx` 印刷ページ（3.0-8で追加）
+
+#### 新コンポーネント
+- [x] `components/items/ItemGridView.tsx`
+- [x] `components/items/BulkActionsBar.tsx`
+- [x] `components/items/BulkEditDialog.tsx`
+- [x] `components/items/ItemFilters.tsx`
+
+#### サイドバー
+- [x] `components/layout/Sidebar.tsx` 更新（/items リンク追加）
+
+---
+
+### 3.0-5 ユーティリティ ✅
+
+#### SKU生成
+- [x] `lib/utils/sku.ts` 更新
+  - `generateItemSku(itemType)` 追加
+  - ItemType に応じて SKU-/CSG- を生成
+
+#### 変更履歴
+- [x] `lib/changelog.ts` 更新
+  - `itemType` パラメータ対応
+  - entityType='item' 対応
+
+---
+
+### 3.0-6 CSV統合 ✅
+
+#### エクスポート
+- [x] 「種別」列を追加（商品/委託品）
+- [x] 委託品の原価単価は空欄で出力
+
+#### インポート
+- [x] 「種別」列の解析対応
+- [x] 商品: 原価単価必須
+- [x] 委託品: 原価単価は空欄（nullとして保存）
+
+---
+
+### 3.0-7 ビルド確認 ✅
+
+- [x] TypeScriptエラーなし
+- [x] `npm run build` 成功（61ルート）
+- [x] 全APIルートがリダイレクトまたは新API形式
+
+---
+
+### 3.0-8 残作業 ✅
+
+#### マイグレーション実行
+- [ ] 開発環境でマイグレーション実行
+  ```bash
+  npx prisma migrate deploy
+  ```
+- [ ] 動作確認
+
+#### 不足ページ・API追加（2026-02-06完了）
+- [x] `app/api/items/[id]/materials/route.ts` 作成（PUT: 素材一括更新）
+- [x] `app/(dashboard)/items/[id]/edit/page.tsx` 作成（編集ページ）
+- [x] `app/(dashboard)/items/print/page.tsx` 作成（印刷ページ）
+
+#### E2Eテスト更新（2026-02-06完了）
+- [x] `tests/e2e/items.spec.ts` 新規作成（一覧、フィルタ、作成、詳細、ナビゲーション等）
+- [x] 旧テスト削除: `products.spec.ts`, `products-v2.spec.ts`, `products-grid-view.spec.ts`
+
+#### 旧コード削除（2026-02-06完了）
+- [x] `lib/products/query.ts` 削除
+- [x] `lib/consignments/query.ts` 削除
+- [x] `lib/validations/product.ts` 削除
+- [x] `lib/validations/consignment.ts` 削除
+- [x] `nul` ファイル削除
+- [x] 旧テーブル（Product, Consignment等8モデル）をPrismaスキーマから削除
+- [x] 旧単体テスト削除: `product-validation.test.ts`, `product-validation-v2.test.ts`
+- [x] 旧統合テスト削除: `products.test.ts`, `products-v2.test.ts`, `dashboard-v2.test.ts`
+- [x] `prisma/seed.ts` をItemモデルに更新
+- [x] `scripts/fix-arrival-dates.ts` をItemモデルに更新
+- [x] `scripts/import-images.ts` をItemモデルに更新
+- [x] `tests/unit/sku-generation.test.ts` をv3.0対応に更新
+
+#### 新規テスト追加（2026-02-06完了）
+- [x] `tests/unit/item-validation.test.ts` 新規作成（35テスト）
+
+#### ドキュメント更新
+- [x] TODO.md に実装状況を記録（本セクション）
+- [x] CLAUDE.md のデータモデルセクション更新（v3.0対応済み）
+- [x] API仕様書更新（v3.0: Items統合API）
+
+---
+
+### 変更ファイル一覧
+
+#### 新規作成
+```
+prisma/migrations/20260202_unify_product_consignment/migration.sql
+lib/validations/item.ts
+lib/items/query.ts
+app/api/items/route.ts
+app/api/items/[id]/route.ts
+app/api/items/[id]/images/route.ts
+app/api/items/[id]/images/[imageId]/route.ts
+app/api/items/[id]/materials/route.ts
+app/api/items/bulk/delete/route.ts
+app/api/items/bulk/edit/route.ts
+app/api/items/export/route.ts
+app/api/items/import/route.ts
+app/api/items/import/template/route.ts
+app/api/items/ids/route.ts
+app/api/items/print/route.ts
+app/(dashboard)/items/page.tsx
+app/(dashboard)/items/new/page.tsx
+app/(dashboard)/items/[id]/page.tsx
+app/(dashboard)/items/[id]/edit/page.tsx
+app/(dashboard)/items/print/page.tsx
+components/items/ItemGridView.tsx
+components/items/BulkActionsBar.tsx
+components/items/BulkEditDialog.tsx
+components/items/ItemFilters.tsx
+components/ui/tabs.tsx
+```
+
+#### 変更
+```
+prisma/schema.prisma
+lib/types.ts
+lib/utils/sku.ts
+lib/changelog.ts
+lib/constants.ts
+components/layout/Sidebar.tsx
+app/api/products/* (リダイレクト化)
+app/api/consignments/* (リダイレクト化)
+app/api/manufacturers/route.ts
+app/api/categories/route.ts
+app/api/locations/route.ts
+app/api/units/route.ts
+app/api/tags/route.ts
+app/api/dashboard/stats/route.ts
+app/api/dashboard/cost-by-manufacturer/route.ts
+app/api/dashboard/recent/route.ts
+```
+
+#### 削除済み（2026-02-06）
+```
+lib/products/query.ts
+lib/consignments/query.ts
+lib/validations/product.ts
+lib/validations/consignment.ts
+nul
+tests/e2e/products.spec.ts
+tests/e2e/products-v2.spec.ts
+tests/e2e/products-grid-view.spec.ts
+tests/unit/product-validation.test.ts
+tests/unit/product-validation-v2.test.ts
+tests/integration/products.test.ts
+tests/integration/products-v2.test.ts
+tests/integration/dashboard-v2.test.ts
+prisma/schema.prisma から旧8モデル（Product, ProductImage, ProductMaterial, ProductTag, Consignment, ConsignmentImage, ConsignmentMaterial, ConsignmentTag）
+```
+
+---
+
+### 新しいコンテキストでの作業開始手順
+
+1. **マイグレーション実行**（未実行の場合）
+   ```bash
+   npx prisma migrate deploy
+   npx prisma generate
+   ```
+
+2. **開発サーバー起動**
+   ```bash
+   npm run dev
+   ```
+
+3. **動作確認**
+   - `/items` ページが表示されること
+   - `/items?type=product` で商品のみ表示
+   - `/items?type=consignment` で委託品のみ表示
+   - 商品作成時に原価単価が必須
+   - 委託品作成時に原価単価が空欄可能
+
+4. **旧URLリダイレクト確認**
+   - `/products` → `/items?type=product`
+   - `/consignments` → `/items?type=consignment`
+
+---
+
+### 将来拡張: 委託品→在庫品切り替え
+
+この統合により、以下の機能が容易に実装可能:
+
+```typescript
+// PUT /api/items/:id/convert
+// 委託品→商品: costPrice必須、SKU変更（CSG-00001 → SKU-00XXX）
+// 商品→委託品: costPrice=null、SKU変更（SKU-00001 → CSG-00XXX）
+```

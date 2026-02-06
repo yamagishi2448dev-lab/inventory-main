@@ -27,7 +27,7 @@ export async function GET(
             where: { id: params.id },
             include: {
                 _count: {
-                    select: { products: true },
+                    select: { items: true },
                 },
             },
         })

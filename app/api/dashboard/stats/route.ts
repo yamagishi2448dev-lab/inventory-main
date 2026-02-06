@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db/prisma'
 import { authenticateRequest } from '@/lib/auth/middleware'
 
-// v2.0 ダッシュボード統計API
+// v3.0 ダッシュボード統計API - Items統合版
 export async function GET() {
   // 認証チェック
   const auth = await authenticateRequest()
@@ -11,15 +11,25 @@ export async function GET() {
   }
 
   try {
-    // 商品総数、品目数、メーカー数、原価合計を並列取得
-    const [totalProducts, totalCategories, totalManufacturers, costResult] = await Promise.all([
-      prisma.product.count(),
+    // 統計を並列取得
+    const [
+      totalProducts,
+      totalConsignments,
+      totalCategories,
+      totalManufacturers,
+      costResult
+    ] = await Promise.all([
+      // 商品数（itemType = 'PRODUCT'）
+      prisma.item.count({ where: { itemType: 'PRODUCT' } }),
+      // 委託品数（itemType = 'CONSIGNMENT'）
+      prisma.item.count({ where: { itemType: 'CONSIGNMENT' } }),
       prisma.category.count(),
       prisma.manufacturer.count(),
-      // DB側でSUM計算を実行（最適化）
+      // 原価合計（商品のみ、costPrice IS NOT NULLのもの）
       prisma.$queryRaw<[{ total: number | null }]>`
         SELECT COALESCE(SUM("costPrice" * quantity), 0) as total
-        FROM products
+        FROM items
+        WHERE "itemType" = 'PRODUCT' AND "costPrice" IS NOT NULL
       `
     ])
 
@@ -27,6 +37,7 @@ export async function GET() {
 
     return NextResponse.json({
       totalProducts,
+      totalConsignments,
       totalCategories,
       totalManufacturers,
       totalCost: Number(totalCost).toFixed(2),

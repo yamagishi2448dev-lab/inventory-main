@@ -37,51 +37,110 @@
 - デプロイ: Vercel
 - UIコンポーネント: shadcn/ui + Radix UI + Tailwind CSS
 
-## 4. データモデル（v2.3 現行）
+## 4. データモデル（v3.0 現行）
+> v3.0で商品・委託品を統合した`Item`モデルに移行
 > 旧呼称: Supplier → Manufacturer, Category → 品目, Tag（v1）→ Location
 
-### 4.1 Product（商品）
-- `sku` 自動採番（`SKU-00001` 形式、編集不可）
-- 必須項目: name, costPrice
-- 主な項目: manufacturerId, categoryId, specification, size, fabricColor, quantity, unitId,
-  costPrice, listPrice, arrivalDate, locationId, designer, notes
-- リレーション: images[], materials[], tags[]
-- フラグ: isSold, soldAt
-- 監査: createdAt, updatedAt
+### 4.1 Item（統合モデル）⭐ v3.0新規
+商品（PRODUCT）と委託品（CONSIGNMENT）を統合した単一テーブル。
 
-### 4.2 Consignment（委託品）
-- `sku` 自動採番（`CSG-00001` 形式、編集不可）
-- Productと同等の構造、costPriceは常に0
-- images[], materials[], tags[], isSold, soldAt を含む
+```prisma
+enum ItemType {
+  PRODUCT      // 商品: costPrice必須
+  CONSIGNMENT  // 委託品: costPrice=null
+}
 
-### 4.3 Material（素材）
+model Item {
+  id             String    @id @default(cuid())
+  sku            String    @unique  // SKU-00001 or CSG-00001
+  itemType       ItemType  @default(PRODUCT)
+  name           String
+  manufacturerId String?
+  categoryId     String?
+  specification  String?
+  size           String?
+  fabricColor    String?
+  quantity       Int       @default(0)
+  unitId         String?
+  costPrice      Decimal?  // nullable: 委託品はnull
+  listPrice      Decimal?
+  arrivalDate    String?
+  locationId     String?
+  designer       String?
+  notes          String?
+  isSold         Boolean   @default(false)
+  soldAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // リレーション
+  images    ItemImage[]
+  materials ItemMaterial[]
+  tags      ItemTag[]
+}
+```
+
+**SKU採番**
+- 商品（PRODUCT）: `SKU-NNNNN`（5桁ゼロ埋め）
+- 委託品（CONSIGNMENT）: `CSG-NNNNN`（5桁ゼロ埋め）
+
+**costPrice の扱い**
+- 商品: 必須（バリデーションで強制）
+- 委託品: null（原価なし）
+
+### 4.2 ItemImage / ItemMaterial / ItemTag
+```prisma
+model ItemImage {
+  id     String @id @default(cuid())
+  itemId String
+  url    String
+  order  Int    @default(0)
+  item   Item   @relation(onDelete: Cascade)
+}
+
+model ItemMaterial {
+  id             String @id @default(cuid())
+  itemId         String
+  materialTypeId String
+  description    String?
+  imageUrl       String?
+  order          Int    @default(0)
+}
+
+model ItemTag {
+  id     String @id @default(cuid())
+  itemId String
+  tagId  String
+  @@unique([itemId, tagId])
+}
+```
+
+### 4.3 Material（素材マスタ）
 - MaterialType: id, name, order（素材項目マスタ）
-- ProductMaterial: productId, materialTypeId, description, imageUrl, order
-- ConsignmentMaterial: consignmentId, materialTypeId, description, imageUrl, order
 
 ### 4.4 Tag（タグ）
 - Tag: id, name, createdAt, updatedAt
-- ProductTag: productId, tagId（多対多中間テーブル、複合ユニーク制約）
-- ConsignmentTag: consignmentId, tagId（多対多中間テーブル、複合ユニーク制約）
-- 商品・委託品に複数タグを付与可能
+- ItemTag: itemId, tagId（多対多中間テーブル、複合ユニーク制約）
+- アイテムに複数タグを付与可能
 - タグによるフィルタリング（OR条件）
 
 ### 4.5 Master Data（マスタデータ）
-- Manufacturer（メーカー）: id, name, products[], consignments[]
-- Category（品目）: id, name, products[], consignments[]
-- Location（場所）: id, name, products[], consignments[]
-- Unit（単位）: id, name, products[], consignments[]
-- 各マスタは商品・委託品の両方から参照される
+- Manufacturer（メーカー）: id, name, items[]
+- Category（品目）: id, name, items[]
+- Location（場所）: id, name, items[]
+- Unit（単位）: id, name, items[]
+- 各マスタは`Item`から参照される
 
-### 4.6 Image（画像）
-- ProductImage: id, productId, url, order（Cascade削除）
-- ConsignmentImage: id, consignmentId, url, order（Cascade削除）
-
-### 4.7 System（システム）
-- ChangeLog: entityType, entityId, entityName, entitySku, action, changes(JSON), userId, userName, createdAt
+### 4.6 System（システム）
+- ChangeLog: entityType, entityId, entityName, entitySku, action, changes(JSON), userId, userName, **itemType**, createdAt
+  - entityType: 'item' (v3.0), 'product'/'consignment' (v2.x互換)
+  - itemType: 'PRODUCT' | 'CONSIGNMENT' (v3.0追加)
 - SystemSetting: id, key(unique), value, updatedAt（SKU採番カウンター等）
 - User: id, username, passwordHash, role, createdAt, sessions[]
 - Session: id, userId, tokenHash, expiresAt, createdAt
+
+### 4.7 旧モデル（v2.x 互換）
+> 2026-02-06にPrismaスキーマから削除済み。DBテーブルはマイグレーション実行後に削除される。
 
 ## 5. 機能要件（要約）
 - 認証/ユーザー管理（ログイン、ログアウト、パスワード変更、ユーザーCRUD）
@@ -125,12 +184,20 @@
 
 ---
 
-**最終更新日**: 2026-01-31
-**バージョン**: 2.3.0
+**最終更新日**: 2026-02-03
+**バージョン**: 3.0.0
 
 ---
 
 ## 運用メモ（トラブル/作業メモ）
+
+### v3.0 Item統合（2026-02-03）
+- Product/Consignment テーブルを Item テーブルに統合
+- 旧API（/api/products, /api/consignments）は307リダイレクトで/api/itemsへ転送
+- マイグレーション: `prisma/migrations/20260202_unify_product_consignment/`
+- 詳細は `TODO.md` の Phase 3.0 セクションを参照
+
+### 過去のトラブル
 - 本番で商品詳細の「販売済み」トグル後にクライアント側でクラッシュ。
   TypeError: Cannot read properties of undefined (reading 'toLocaleString')。
   原因はPUTレスポンスが `{ success: true, product: ... }` なのに詳細画面が

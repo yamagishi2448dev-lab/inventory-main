@@ -2,21 +2,22 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useSidebar } from '@/lib/contexts/SidebarContext'
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { Home, Package, Truck, FolderTree, Building2, MapPin, Ruler, Layers, Tag, ChevronDown, Database, Menu } from 'lucide-react'
+import { Home, Package, Truck, FolderTree, Building2, MapPin, Ruler, Layers, Tag, ChevronDown, Database, LayoutList } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // メイン項目
 const mainMenuItems = [
-  { name: 'ダッシュボード', href: '/dashboard', icon: Home },
-  { name: '商品', href: '/products', icon: Package },
-  { name: '委託品', href: '/consignments', icon: Truck },
+  { name: 'ダッシュボード', href: '/dashboard', icon: Home, itemType: null },
+  { name: 'アイテム', href: '/items', icon: LayoutList, itemType: 'all' as const },
+  { name: '商品', href: '/items?type=PRODUCT', icon: Package, itemType: 'PRODUCT' as const },
+  { name: '委託品', href: '/items?type=CONSIGNMENT', icon: Truck, itemType: 'CONSIGNMENT' as const },
 ]
 
 // マスタデータ項目（折りたたみ）
@@ -30,6 +31,7 @@ const masterDataItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { isOpen, setOpen, isMobile, toggle } = useSidebar()
   const [isMasterOpen, setIsMasterOpen] = useState(() => {
     return masterDataItems.some(
@@ -41,9 +43,34 @@ export function Sidebar() {
     (item) => pathname === item.href || pathname.startsWith(item.href + '/')
   )
 
-  const renderMenuItem = (item: { name: string; href: string; icon: React.ComponentType<{ className?: string }> }) => {
+  // /items ページでのアクティブ判定用
+  const currentItemType = searchParams.get('type')
+
+  const isItemMenuActive = (itemType: 'all' | 'PRODUCT' | 'CONSIGNMENT' | null) => {
+    if (itemType === null) return false // ダッシュボードなど
+
+    // /items ページでない場合は false
+    if (!pathname.startsWith('/items')) return false
+
+    // 全アイテム（all）の場合：type パラメータがない場合にアクティブ
+    if (itemType === 'all') {
+      return !currentItemType
+    }
+
+    // 特定タイプの場合：type パラメータが一致する場合にアクティブ
+    return currentItemType === itemType
+  }
+
+  const renderMenuItem = (item: { name: string; href: string; icon: React.ComponentType<{ className?: string }>; itemType?: 'all' | 'PRODUCT' | 'CONSIGNMENT' | null }) => {
     const Icon = item.icon
-    const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+    // アイテムページの場合は専用ロジックで判定
+    let isActive: boolean
+    if (item.itemType !== undefined) {
+      isActive = isItemMenuActive(item.itemType)
+    } else {
+      isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+    }
 
     return (
       <Link
@@ -59,8 +86,6 @@ export function Sidebar() {
       >
         <Icon className={cn("w-5 h-5 flex-shrink-0 transition-colors", isActive ? "text-blue-600" : "text-slate-400 group-hover:text-slate-600")} />
         {isOpen && <span className="ml-3 text-sm">{item.name}</span>}
-
-        {/* Active Indicator Strip (Optional, removed for cleaner look, relying on bg-blue-50) */}
       </Link>
     )
   }

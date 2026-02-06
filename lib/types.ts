@@ -1,9 +1,152 @@
 /**
- * 共通型定義 v2.1
+ * 共通型定義 v3.0
  * アプリケーション全体で使用される型を一元管理
+ * v3.0: Product/Consignment統合（Item）
  */
 
 import { Prisma } from '@prisma/client'
+
+// ==========================================
+// v3.0 Item統合型定義
+// ==========================================
+
+/** アイテム種別 */
+export type ItemType = 'PRODUCT' | 'CONSIGNMENT'
+
+/** アイテム画像型 v3.0 */
+export interface ItemImage {
+    id: string
+    itemId: string
+    url: string
+    order: number
+}
+
+/** アイテム素材型 v3.0 */
+export interface ItemMaterial {
+    id: string
+    itemId: string
+    materialTypeId: string
+    materialType?: MaterialType
+    description?: string | null
+    imageUrl?: string | null
+    order: number
+    createdAt?: Date | string
+}
+
+/** アイテムタグ中間型 v3.0 */
+export interface ItemTagRelation {
+    id: string
+    itemId: string
+    tagId: string
+    tag?: TagV2
+    createdAt?: Date | string
+}
+
+/** アイテムの基本型 v3.0 */
+export interface Item {
+    id: string
+    sku: string
+    itemType: ItemType
+    name: string
+    manufacturerId?: string | null
+    categoryId?: string | null
+    specification?: string | null
+    size?: string | null
+    fabricColor?: string | null
+    quantity: number
+    unitId?: string | null
+    costPrice?: string | Prisma.Decimal | null  // 商品:必須, 委託品:null
+    listPrice?: string | Prisma.Decimal | null
+    arrivalDate?: string | null
+    locationId?: string | null
+    designer?: string | null
+    notes?: string | null
+    isSold?: boolean
+    soldAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+}
+
+/** アイテム詳細型（リレーション含む）v3.0 */
+export interface ItemWithRelations extends Item {
+    manufacturer: Pick<Manufacturer, 'id' | 'name'> | null
+    category: Pick<Category, 'id' | 'name'> | null
+    location: Pick<Location, 'id' | 'name'> | null
+    unit: Pick<Unit, 'id' | 'name'> | null
+    images?: ItemImage[]
+    materials?: ItemMaterial[]
+    tags?: ItemTagRelation[]
+    totalCost?: string
+}
+
+/** アイテム検索フィルター v3.0 */
+export interface ItemFilters {
+    search?: string
+    itemType?: ItemType
+    categoryId?: string
+    manufacturerId?: string
+    locationId?: string
+    arrivalDate?: string
+    tagIds?: string[]
+    includeSold?: boolean
+    page?: number
+    limit?: number
+}
+
+/** アイテムソートフィールド v3.0 */
+export type ItemSortField =
+    | 'manufacturer'
+    | 'category'
+    | 'name'
+    | 'specification'
+    | 'quantity'
+    | 'costPrice'
+    | 'listPrice'
+    | 'location'
+    | 'createdAt'
+
+/** アイテムソート順 v3.0 */
+export type ItemSortOrder = 'asc' | 'desc'
+
+/** アイテム一覧APIレスポンス v3.0 */
+export interface ItemListResponse {
+    items: ItemWithRelations[]
+    pagination: PaginationData
+}
+
+/** アイテム一括削除リクエスト v3.0 */
+export interface ItemBulkDeleteRequest {
+    ids: string[]
+}
+
+/** アイテム一括削除レスポンス v3.0 */
+export interface ItemBulkDeleteResponse {
+    success: true
+    deletedCount: number
+    message: string
+}
+
+/** アイテム一括編集リクエスト v3.0 */
+export interface ItemBulkEditRequest {
+    ids: string[]
+    updates: {
+        locationId?: string | null
+        manufacturerId?: string | null
+        categoryId?: string | null
+        tagIds?: string[]
+        quantity?: {
+            mode: QuantityMode
+            value: number
+        }
+    }
+}
+
+/** アイテム一括編集レスポンス v3.0 */
+export interface ItemBulkEditResponse {
+    success: true
+    updatedCount: number
+    message: string
+}
 
 // ==========================================
 // 基本エンティティ型 (v2.1)
@@ -49,9 +192,13 @@ export interface ConsignmentTagRelation {
     tag?: TagV2
 }
 
-/** 商品数を含むマスタデータ */
+/** 商品数を含むマスタデータ v3.0 */
 export interface NamedEntityWithCount extends NamedEntity {
-    _count?: { products: number; consignments?: number }
+    _count?: {
+        items?: number           // v3.0: 統合アイテム数
+        products?: number        // 後方互換
+        consignments?: number    // 後方互換
+    }
 }
 
 /** 商品画像の型 */
@@ -299,8 +446,8 @@ export interface BulkEditResponse {
 /** 変更履歴アクション */
 export type ChangeLogAction = 'create' | 'update' | 'delete'
 
-/** 変更履歴エンティティタイプ */
-export type ChangeLogEntityType = 'product' | 'consignment'
+/** 変更履歴エンティティタイプ v3.0 */
+export type ChangeLogEntityType = 'item' | 'product' | 'consignment'  // 'item'が新標準、他は後方互換
 
 /** 変更履歴の変更内容 */
 export interface ChangeLogField {
@@ -310,7 +457,7 @@ export interface ChangeLogField {
     to?: string
 }
 
-/** 変更履歴型 v2.1 */
+/** 変更履歴型 v3.0 */
 export interface ChangeLog {
     id: string
     entityType: ChangeLogEntityType
@@ -321,6 +468,7 @@ export interface ChangeLog {
     changes?: string | null
     userId: string
     userName: string
+    itemType?: ItemType | null  // v3.0追加: 商品/委託品の区別
     createdAt: Date | string
 }
 

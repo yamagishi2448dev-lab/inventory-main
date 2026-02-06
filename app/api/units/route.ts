@@ -20,7 +20,7 @@ export async function GET() {
     try {
         const units = await prisma.unit.findMany({
             include: {
-                _count: { select: { products: true } },
+                _count: { select: { items: true } },
             },
             orderBy: { name: 'asc' },
         })

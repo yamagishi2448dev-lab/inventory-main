@@ -22,7 +22,7 @@ export async function GET() {
         const locations = await prisma.location.findMany({
             include: {
                 _count: {
-                    select: { products: true },
+                    select: { items: true },
                 },
             },
             orderBy: {

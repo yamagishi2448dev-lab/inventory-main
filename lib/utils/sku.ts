@@ -79,3 +79,43 @@ export async function generateConsignmentSku(): Promise<string> {
 export function isValidConsignmentSkuFormat(sku: string): boolean {
     return /^CSG-\d{5}$/.test(sku)
 }
+
+// ===== v3.0 Item統合用 =====
+
+import type { ItemType } from '@/lib/types'
+
+/**
+ * アイテム種別に応じたSKUを生成する
+ * @param itemType アイテム種別（PRODUCT または CONSIGNMENT）
+ * @returns 生成されたSKU
+ */
+export async function generateItemSku(itemType: ItemType): Promise<string> {
+    if (itemType === 'CONSIGNMENT') {
+        return generateConsignmentSku()
+    }
+    return generateSku()
+}
+
+/**
+ * SKUからアイテム種別を判定
+ * @param sku SKU文字列
+ * @returns アイテム種別（不明な場合はnull）
+ */
+export function getItemTypeFromSku(sku: string): ItemType | null {
+    if (isValidSkuFormat(sku)) {
+        return 'PRODUCT'
+    }
+    if (isValidConsignmentSkuFormat(sku)) {
+        return 'CONSIGNMENT'
+    }
+    return null
+}
+
+/**
+ * アイテムSKUフォーマットの検証（商品または委託品）
+ * @param sku 検証するSKU
+ * @returns 有効なSKU形式の場合true
+ */
+export function isValidItemSkuFormat(sku: string): boolean {
+    return isValidSkuFormat(sku) || isValidConsignmentSkuFormat(sku)
+}

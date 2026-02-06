@@ -8,8 +8,8 @@ const prisma = new PrismaClient({
 async function main() {
   console.log('🔧 入荷年月データの修正を開始します...')
 
-  // 商品の入荷年月を修正
-  const products = await prisma.product.findMany({
+  // アイテムの入荷年月を修正
+  const items = await prisma.item.findMany({
     where: {
       arrivalDate: {
         not: null,
@@ -19,68 +19,31 @@ async function main() {
       id: true,
       sku: true,
       name: true,
+      itemType: true,
       arrivalDate: true,
     },
   })
 
-  console.log(`📦 商品: ${products.length}件の入荷年月をチェックします`)
+  console.log(`📦 アイテム: ${items.length}件の入荷年月をチェックします`)
 
-  let updatedProducts = 0
-  for (const product of products) {
-    if (!product.arrivalDate) continue
+  let updatedCount = 0
+  for (const item of items) {
+    if (!item.arrivalDate) continue
 
-    const converted = convertExcelSerialDate(product.arrivalDate)
+    const converted = convertExcelSerialDate(item.arrivalDate)
 
     // 変換前と変換後が異なる場合のみ更新
-    if (converted && converted !== product.arrivalDate) {
-      await prisma.product.update({
-        where: { id: product.id },
+    if (converted && converted !== item.arrivalDate) {
+      await prisma.item.update({
+        where: { id: item.id },
         data: { arrivalDate: converted },
       })
-      console.log(`  ✓ ${product.sku} ${product.name}: "${product.arrivalDate}" → "${converted}"`)
-      updatedProducts++
+      console.log(`  ✓ ${item.sku} ${item.name}: "${item.arrivalDate}" → "${converted}"`)
+      updatedCount++
     }
   }
 
-  console.log(`✅ 商品: ${updatedProducts}件を更新しました`)
-
-  // 委託品の入荷年月を修正
-  const consignments = await prisma.consignment.findMany({
-    where: {
-      arrivalDate: {
-        not: null,
-      },
-    },
-    select: {
-      id: true,
-      sku: true,
-      name: true,
-      arrivalDate: true,
-    },
-  })
-
-  console.log(`📦 委託品: ${consignments.length}件の入荷年月をチェックします`)
-
-  let updatedConsignments = 0
-  for (const consignment of consignments) {
-    if (!consignment.arrivalDate) continue
-
-    const converted = convertExcelSerialDate(consignment.arrivalDate)
-
-    // 変換前と変換後が異なる場合のみ更新
-    if (converted && converted !== consignment.arrivalDate) {
-      await prisma.consignment.update({
-        where: { id: consignment.id },
-        data: { arrivalDate: converted },
-      })
-      console.log(`  ✓ ${consignment.sku} ${consignment.name}: "${consignment.arrivalDate}" → "${converted}"`)
-      updatedConsignments++
-    }
-  }
-
-  console.log(`✅ 委託品: ${updatedConsignments}件を更新しました`)
-  console.log('')
-  console.log(`🎉 完了: 合計 ${updatedProducts + updatedConsignments}件を更新しました`)
+  console.log(`✅ ${updatedCount}件を更新しました`)
 }
 
 main()

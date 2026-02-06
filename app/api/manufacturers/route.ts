@@ -23,7 +23,7 @@ export async function GET() {
         const manufacturers = await prisma.manufacturer.findMany({
             include: {
                 _count: {
-                    select: { products: true },
+                    select: { items: true },
                 },
             },
             orderBy: {

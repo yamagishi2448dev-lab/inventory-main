@@ -1,4 +1,4 @@
-# Data Model (v2.3)
+# Data Model (v3.0)
 
 ## Naming History
 - v1 → v2.0: Supplier → Manufacturer（メーカー）、Category → 品目（用途変更）、Tag → Location（場所）
@@ -6,88 +6,157 @@
 - v2.1: Consignment（委託品）、Material（素材）、ChangeLog（変更履歴）、SystemSetting追加
 - v2.2: Tag機能追加（ProductTag、ConsignmentTag）
 - v2.3: designerフィールド追加
+- **v3.0: Product/Consignment を Item に統合**
 
 ## Entity Overview
 
 | モデル | 説明 | 主なフィールド |
 |--------|------|----------------|
-| Product | 商品 | sku, name, costPrice, quantity, images[], materials[], tags[] |
-| Consignment | 委託品 | sku, name, costPrice(=0), quantity, images[], materials[], tags[] |
-| Manufacturer | メーカー | name |
-| Category | 品目 | name |
-| Location | 場所 | name |
-| Unit | 単位 | name |
-| Tag | タグ | name |
-| MaterialType | 素材項目マスタ | name, order |
-| ProductMaterial | 商品素材 | description, imageUrl, order |
-| ConsignmentMaterial | 委託品素材 | description, imageUrl, order |
-| ProductImage | 商品画像 | url, order |
-| ConsignmentImage | 委託品画像 | url, order |
-| ChangeLog | 変更履歴 | entityType, action, changes(JSON) |
+| **Item** | 統合モデル（商品/委託品）| sku, itemType, name, costPrice?, quantity, images[], materials[], tags[] |
+| ItemImage | アイテム画像 | itemId, url, order |
+| ItemMaterial | アイテム素材 | itemId, materialTypeId, description, imageUrl, order |
+| ItemTag | アイテムタグ中間 | itemId, tagId |
+| Manufacturer | メーカー | name, items[] |
+| Category | 品目 | name, items[] |
+| Location | 場所 | name, items[] |
+| Unit | 単位 | name, items[] |
+| Tag | タグ | name, itemTags[] |
+| MaterialType | 素材項目マスタ | name, order, itemMaterials[] |
+| ChangeLog | 変更履歴 | entityType, itemType, action, changes(JSON) |
 | SystemSetting | システム設定 | key, value |
 | User | ユーザー | username, passwordHash, role |
 | Session | セッション | tokenHash, expiresAt |
 
 ---
 
-## Core Entities
+## Core Entity: Item (v3.0)
 
-### Product（商品）v2.3
+### Item（統合モデル）
 ```prisma
-model Product {
-  id             String   @id @default(cuid())
-  sku            String   @unique  // 自動採番: SKU-00001形式
-  name           String              // 商品名（必須）
+enum ItemType {
+  PRODUCT      // 商品: costPrice必須
+  CONSIGNMENT  // 委託品: costPrice=null
+}
+
+model Item {
+  id             String    @id @default(cuid())
+  sku            String    @unique  // SKU-00001 or CSG-00001
+  itemType       ItemType  @default(PRODUCT)
+  name           String              // アイテム名（必須）
   manufacturerId String?             // メーカーID
   categoryId     String?             // 品目ID
   specification  String?             // 仕様（自由テキスト）
   size           String?             // サイズ
   fabricColor    String?             // 張地/カラー（複数行テキスト）
-  quantity       Int      @default(0)  // 個数（旧stock）
+  quantity       Int      @default(0)  // 個数
   unitId         String?             // 単位ID
-  costPrice      Decimal             // 原価単価（必須）
+  costPrice      Decimal?            // 原価単価（商品は必須、委託品はnull）
   listPrice      Decimal?            // 定価単価
   arrivalDate    String?             // 入荷年月（例: "2024年1月"）
   locationId     String?             // 場所ID
-  designer       String?             // デザイナー（v2.3追加）
+  designer       String?             // デザイナー
   notes          String?             // 備考
   isSold         Boolean  @default(false)  // 販売済みフラグ
   soldAt         DateTime?           // 販売済み日時
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  manufacturer Manufacturer?   @relation(...)
-  category     Category?       @relation(...)
-  unit         Unit?           @relation(...)
-  location     Location?       @relation(...)
-  images       ProductImage[]
-  materials    ProductMaterial[]
-  tags         ProductTag[]
+  manufacturer Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  unit         Unit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  location     Location?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  images       ItemImage[]
+  materials    ItemMaterial[]
+  tags         ItemTag[]
+
+  @@index([itemType])
+  @@index([manufacturerId])
+  @@index([categoryId])
+  @@index([locationId])
+  @@index([unitId])
+  @@index([name])
+  @@index([sku])
+  @@index([isSold])
+  @@map("items")
 }
 ```
 
 **フィールド詳細**
-- 必須: `name`, `costPrice`
-- 自動採番: `sku`（`SKU-00001`形式、編集不可）
+- 必須: `name`
+- 条件付き必須: `costPrice`（itemType=PRODUCTの場合のみ必須）
+- 自動採番: `sku`
+  - PRODUCT: `SKU-00001`形式
+  - CONSIGNMENT: `CSG-00001`形式
 - 数量: `quantity`（0以上、デフォルト0）
-- 金額: `costPrice`, `listPrice` - Decimal型
+- 金額: `costPrice`, `listPrice` - Decimal型（nullableあり）
 - 日付: `arrivalDate` - 文字列（例: "2024年1月"）
 - 参照: `manufacturerId`, `categoryId`, `locationId`, `unitId`（いずれも任意）
-- 計算フィールド（クライアント側）: `totalCost = costPrice * quantity`
+- 計算フィールド（クライアント側）: `totalCost = (costPrice || 0) * quantity`
 
-### Consignment（委託品）v2.3
+### ItemType による違い
+
+| 項目 | PRODUCT（商品） | CONSIGNMENT（委託品） |
+|------|----------------|----------------------|
+| SKU形式 | `SKU-NNNNN` | `CSG-NNNNN` |
+| costPrice | 必須 | null |
+| 原価合計計算 | 含まれる | 含まれない |
+
+---
+
+## Related Entities
+
+### ItemImage
 ```prisma
-model Consignment {
-  // Productと同等の構造
-  // costPrice は常に 0
-  // sku は CSG-00001 形式で自動採番
+model ItemImage {
+  id     String @id @default(cuid())
+  itemId String
+  url    String
+  order  Int    @default(0)
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@map("item_images")
 }
 ```
 
-**Productとの差異**
-- SKU形式: `CSG-NNNNN`（5桁ゼロ埋め）
-- costPrice: 常に0（委託品のため）
-- その他フィールド: Productと同一
+### ItemMaterial
+```prisma
+model ItemMaterial {
+  id             String   @id @default(cuid())
+  itemId         String
+  materialTypeId String
+  description    String?
+  imageUrl       String?
+  order          Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  item         Item         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  materialType MaterialType @relation(fields: [materialTypeId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([materialTypeId])
+  @@map("item_materials")
+}
+```
+
+### ItemTag（中間テーブル）
+```prisma
+model ItemTag {
+  id        String   @id @default(cuid())
+  itemId    String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, tagId])
+  @@index([itemId])
+  @@index([tagId])
+  @@map("item_tags")
+}
+```
 
 ---
 
@@ -96,201 +165,136 @@ model Consignment {
 ### Manufacturer（メーカー）
 ```prisma
 model Manufacturer {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  products     Product[]
-  consignments Consignment[]
+  id    String @id @default(cuid())
+  name  String @unique
+  items Item[]
+
+  @@map("manufacturers")
 }
 ```
 
 ### Category（品目）
 ```prisma
 model Category {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  products     Product[]
-  consignments Consignment[]
+  id    String @id @default(cuid())
+  name  String @unique
+  items Item[]
+
+  @@map("categories")
 }
 ```
 
 ### Location（場所）
 ```prisma
 model Location {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  products     Product[]
-  consignments Consignment[]
+  id    String @id @default(cuid())
+  name  String @unique
+  items Item[]
+
+  @@map("locations")
 }
 ```
 
 ### Unit（単位）
 ```prisma
 model Unit {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  products     Product[]
-  consignments Consignment[]
+  id    String @id @default(cuid())
+  name  String @unique
+  items Item[]
+
+  @@map("units")
 }
 ```
 
 **共通仕様**
-- 各マスタは商品・委託品の両方から参照される
-- 削除時は参照をSetNull（商品・委託品のXxxIdをnullに）
-- APIは一覧で参照カウント（_count.products, _count.consignments）を返す
+- 各マスタは`Item`から参照される
+- 削除時は参照をSetNull（ItemのXxxIdをnullに）
+- APIは一覧で参照カウント（_count.items）を返す
 
 ---
 
-## Tag（タグ）v2.2
+## Tag（タグ）v3.0
 
 ### Tag
 ```prisma
 model Tag {
-  id           String           @id @default(cuid())
-  name         String           @unique
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  products     ProductTag[]
-  consignments ConsignmentTag[]
-}
-```
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  itemTags  ItemTag[]
 
-### ProductTag（中間テーブル）
-```prisma
-model ProductTag {
-  id        String   @id @default(cuid())
-  productId String
-  tagId     String
-  createdAt DateTime @default(now())
-
-  @@unique([productId, tagId])  // 重複防止
-}
-```
-
-### ConsignmentTag（中間テーブル）
-```prisma
-model ConsignmentTag {
-  id            String   @id @default(cuid())
-  consignmentId String
-  tagId         String
-  createdAt     DateTime @default(now())
-
-  @@unique([consignmentId, tagId])  // 重複防止
+  @@map("tags")
 }
 ```
 
 **タグ仕様**
-- 商品・委託品に複数タグを付与可能（多対多）
-- フィルタリング: OR条件（指定タグのいずれかを持つ商品を取得）
+- アイテムに複数タグを付与可能（多対多）
+- フィルタリング: OR条件（指定タグのいずれかを持つアイテムを取得）
 - 削除: タグ削除時はCascadeで中間テーブルも削除
 
 ---
 
-## Material（素材）v2.1
+## Material（素材）v3.0
 
 ### MaterialType（素材項目マスタ）
 ```prisma
 model MaterialType {
-  id        String   @id @default(cuid())
-  name      String   @unique  // 張地、木部、脚部など
-  order     Int      @default(0)  // 表示順
-  createdAt DateTime @default(now())
+  id            String         @id @default(cuid())
+  name          String         @unique
+  order         Int            @default(0)
+  createdAt     DateTime       @default(now())
+  itemMaterials ItemMaterial[]
 
-  materials            ProductMaterial[]
-  consignmentMaterials ConsignmentMaterial[]
-}
-```
-
-### ProductMaterial（商品素材）
-```prisma
-model ProductMaterial {
-  id             String   @id @default(cuid())
-  productId      String
-  materialTypeId String
-  description    String?  // 説明（自由記述）
-  imageUrl       String?  // 画像URL（1枚）
-  order          Int      @default(0)  // 表示順
-  createdAt      DateTime @default(now())
-}
-```
-
-### ConsignmentMaterial（委託品素材）
-```prisma
-model ConsignmentMaterial {
-  // ProductMaterialと同等構造
-  // consignmentId を参照
+  @@map("material_types")
 }
 ```
 
 **素材仕様**
-- 1商品/委託品に複数素材を登録可能
+- 1アイテムに複数素材を登録可能
 - 素材ごとに説明テキストと画像1枚
 - order で表示順を管理
 
 ---
 
-## Image（画像）
-
-### ProductImage
-```prisma
-model ProductImage {
-  id        String  @id @default(cuid())
-  productId String
-  url       String
-  order     Int     @default(0)
-
-  product Product @relation(..., onDelete: Cascade)
-}
-```
-
-### ConsignmentImage
-```prisma
-model ConsignmentImage {
-  id            String @id @default(cuid())
-  consignmentId String
-  url           String
-  order         Int    @default(0)
-
-  consignment Consignment @relation(..., onDelete: Cascade)
-}
-```
-
-**画像仕様**
-- 最大5枚/商品（委託品も同様）
-- order で表示順を管理
-- 商品/委託品削除時はCascadeで画像も削除
-
----
-
 ## System（システム）
 
-### ChangeLog（変更履歴）v2.1
+### ChangeLog（変更履歴）v3.0
 ```prisma
 model ChangeLog {
   id         String   @id @default(cuid())
-  entityType String   // "product" | "consignment"
-  entityId   String   // 商品ID または 委託品ID
-  entityName String   // 商品名（削除後も表示するため保存）
-  entitySku  String   // SKU（削除後も表示するため保存）
+  entityType String   // "item" (v3.0), "product"/"consignment" (v2.x互換)
+  entityId   String
+  entityName String
+  entitySku  String
   action     String   // "create" | "update" | "delete"
-  changes    String?  // 変更内容の詳細（JSON形式）
+  changes    String?  // JSON
   userId     String
-  userName   String   // ユーザー名（削除後も表示するため保存）
+  userName   String
+  itemType   String?  // "PRODUCT" | "CONSIGNMENT" (v3.0追加)
   createdAt  DateTime @default(now())
+
+  @@index([entityType])
+  @@index([createdAt])
+  @@map("change_logs")
 }
 ```
 
 **変更履歴仕様**
-- 商品・委託品の作成/更新/削除を記録
+- entityType: v3.0では'item'、v2.x互換で'product'/'consignment'も対応
+- itemType: アイテムの種別を記録（v3.0追加）
 - changes: 更新時は変更前後の差分をJSON形式で保存
 - entityName, entitySku, userName: 削除後も履歴表示のため別途保存
 
-### SystemSetting（システム設定）v2.1
+### SystemSetting（システム設定）
 ```prisma
 model SystemSetting {
   id        String   @id @default(cuid())
   key       String   @unique
   value     String
   updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
 }
 ```
 
@@ -308,6 +312,8 @@ model User {
   role         String    @default("USER")  // "ADMIN" | "USER"
   createdAt    DateTime  @default(now())
   sessions     Session[]
+
+  @@map("users")
 }
 ```
 
@@ -316,9 +322,15 @@ model User {
 model Session {
   id        String   @id @default(cuid())
   userId    String
-  tokenHash String   @unique  // SHA256ハッシュ
+  tokenHash String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 ```
 
@@ -326,14 +338,20 @@ model Session {
 
 ## Indexes（インデックス）
 
-### Product / Consignment
+### Item
 - `sku` (unique)
+- `itemType`
 - `name`
 - `manufacturerId`
 - `categoryId`
 - `locationId`
 - `unitId`
 - `isSold`
+
+### ItemTag
+- `itemId`
+- `tagId`
+- `[itemId, tagId]` (unique)
 
 ### Session
 - `userId`
@@ -343,20 +361,16 @@ model Session {
 - `entityType`
 - `createdAt`
 
-### ProductTag / ConsignmentTag
-- `productId` / `consignmentId`
-- `tagId`
-
 ---
 
 ## SKU Auto Generation
 
-### 商品SKU
+### 商品SKU（itemType=PRODUCT）
 - 形式: `SKU-NNNNN`（5桁ゼロ埋め）
 - 例: `SKU-00001`, `SKU-00123`
 - 採番: SystemSettingの`next_product_sku`を使用（トランザクション安全）
 
-### 委託品SKU
+### 委託品SKU（itemType=CONSIGNMENT）
 - 形式: `CSG-NNNNN`（5桁ゼロ埋め）
 - 例: `CSG-00001`, `CSG-00042`
 - 採番: SystemSettingの`next_consignment_sku`を使用（トランザクション安全）
@@ -373,6 +387,16 @@ SRバックヤード, 粟崎, リンテルノ展示, 不明・破棄, 貸出
 
 ---
 
+## Legacy Models（v2.x互換）
+
+以下のモデルはPrismaスキーマから削除済み（2026-02-06）。
+DBテーブルはマイグレーション実行後にDROPされる。
+
+- Product, ProductImage, ProductMaterial, ProductTag
+- Consignment, ConsignmentImage, ConsignmentMaterial, ConsignmentTag
+
+---
+
 ## Version History
 
 | バージョン | 主な変更 |
@@ -382,3 +406,4 @@ SRバックヤード, 粟崎, リンテルノ展示, 不明・破棄, 貸出
 | v2.1 | Consignment, Material, ChangeLog, SystemSetting追加 |
 | v2.2 | Tag機能追加（ProductTag, ConsignmentTag） |
 | v2.3 | designerフィールド追加 |
+| **v3.0** | **Product/Consignmentを Itemに統合、ItemImage/ItemMaterial/ItemTag追加** |

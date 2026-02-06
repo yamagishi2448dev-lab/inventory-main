@@ -25,7 +25,7 @@ export async function GET(
         const location = await prisma.location.findUnique({
             where: { id: params.id },
             include: {
-                _count: { select: { products: true } },
+                _count: { select: { items: true } },
             },
         })
 
