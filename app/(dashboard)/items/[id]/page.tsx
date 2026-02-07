@@ -11,9 +11,23 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { formatPrice } from '@/lib/utils'
-import type { ItemWithRelations } from '@/lib/types'
+import type { ItemType, ItemWithRelations } from '@/lib/types'
 
-export default function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
+interface ItemDetailPageCoreProps {
+  params: Promise<{ id: string }>
+  listPath?: string
+  detailPathPrefix?: string
+  forcedItemType?: ItemType
+  notFoundLabel?: string
+}
+
+export function ItemDetailPageCore({
+  params,
+  listPath = '/items',
+  detailPathPrefix = '/items',
+  forcedItemType,
+  notFoundLabel,
+}: ItemDetailPageCoreProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [item, setItem] = useState<ItemWithRelations | null>(null)
@@ -22,7 +36,7 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
   const [itemId, setItemId] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const returnQuery = searchParams.toString()
-  const backHref = returnQuery ? `/items?${returnQuery}` : '/items'
+  const backHref = returnQuery ? `${listPath}?${returnQuery}` : listPath
 
   useEffect(() => {
     const initParams = async () => {
@@ -71,8 +85,8 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
         throw new Error('アイテムの削除に失敗しました')
       }
 
-      alert('アイテムを削除しました')
-      router.push('/items')
+      alert(`${getTypeLabel()}を削除しました`)
+      router.push(listPath)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'アイテムの削除に失敗しました')
     }
@@ -111,6 +125,8 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   const getTypeLabel = () => {
+    if (forcedItemType === 'PRODUCT') return '商品'
+    if (forcedItemType === 'CONSIGNMENT') return '委託品'
     if (item?.itemType === 'PRODUCT') return '商品'
     if (item?.itemType === 'CONSIGNMENT') return '委託品'
     return 'アイテム'
@@ -129,11 +145,11 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">アイテム詳細</h1>
+          <h1 className="text-3xl font-bold">{notFoundLabel || `${getTypeLabel()}詳細`}</h1>
         </div>
-        <div className="text-red-600">{error || 'アイテムが見つかりません'}</div>
+        <div className="text-red-600">{error || `${getTypeLabel()}が見つかりません`}</div>
         <Link href={backHref}>
-          <Button variant="outline">アイテム一覧に戻る</Button>
+          <Button variant="outline">{getTypeLabel()}一覧に戻る</Button>
         </Link>
       </div>
     )
@@ -164,7 +180,7 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
               販売済み
             </label>
           </div>
-          <Link href={returnQuery ? `/items/${item.id}/edit?${returnQuery}` : `/items/${item.id}/edit`}>
+          <Link href={returnQuery ? `${detailPathPrefix}/${item.id}/edit?${returnQuery}` : `${detailPathPrefix}/${item.id}/edit`}>
             <Button variant="outline">編集</Button>
           </Link>
           <Button variant="outline" onClick={handleDelete}>
@@ -351,4 +367,8 @@ export default function ItemDetailPage({ params }: { params: Promise<{ id: strin
       </Dialog>
     </div>
   )
+}
+
+export default function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  return <ItemDetailPageCore params={params} />
 }

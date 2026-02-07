@@ -1,52 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server'
-
-function buildProxyHeaders(request: NextRequest, includeJsonContentType = false) {
-  const headers = new Headers()
-  const cookie = request.headers.get('cookie')
-  const authorization = request.headers.get('authorization')
-
-  if (cookie) {
-    headers.set('cookie', cookie)
-  }
-  if (authorization) {
-    headers.set('authorization', authorization)
-  }
-  if (includeJsonContentType) {
-    headers.set('content-type', 'application/json')
-  }
-
-  return headers
-}
-
-function extractIds(payload: unknown) {
-  if (!payload || typeof payload !== 'object') {
-    return []
-  }
-
-  const data = payload as Record<string, unknown>
-  const rawIds =
-    (Array.isArray(data.productIds) ? data.productIds : undefined) ||
-    (Array.isArray(data.ids) ? data.ids : undefined) ||
-    []
-
-  return rawIds.filter((id): id is string => typeof id === 'string')
-}
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { extractIds } from '@/lib/api/legacy-mappers'
+import { forwardRequest, invalidJsonResponse, parseRequestJson } from '@/lib/api/legacy-proxy'
 
 // POST /api/products/bulk/delete
 export async function POST(request: NextRequest) {
-  let body: unknown
-  try {
-    body = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  const body = await parseRequestJson(request)
+  if (body === null) {
+    return invalidJsonResponse()
   }
 
-  const response = await fetch(new URL('/api/items/bulk/delete', request.url), {
+  const ids = extractIds(body, ['productIds', 'ids'])
+
+  const { response, payload } = await forwardRequest({
+    request,
+    targetPath: '/api/items/bulk/delete',
     method: 'POST',
-    headers: buildProxyHeaders(request, true),
-    body: JSON.stringify({ ids: extractIds(body) }),
+    body: { ids },
+    includeJsonContentType: true,
   })
 
-  const payload = await response.json().catch(() => null)
   return NextResponse.json(payload, { status: response.status })
 }

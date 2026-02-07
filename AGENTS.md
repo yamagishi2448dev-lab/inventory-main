@@ -45,3 +45,4 @@
 ## Agent-Specific Notes
 - Project rules and domain details live in `.claude/CLAUDE.md` and `TODO.md`.
 - Deployment notes live in `DEPLOYMENT.md`.
+- If Japanese text looks garbled in terminal output, first verify file contents with explicit UTF-8 (`Get-Content -Encoding utf8`) before editing; PowerShell display encoding can differ from source encoding.

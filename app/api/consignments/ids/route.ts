@@ -1,43 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
-
-function buildProxyHeaders(request: NextRequest) {
-  const headers = new Headers()
-  const cookie = request.headers.get('cookie')
-  const authorization = request.headers.get('authorization')
-
-  if (cookie) {
-    headers.set('cookie', cookie)
-  }
-  if (authorization) {
-    headers.set('authorization', authorization)
-  }
-
-  return headers
-}
-
-function mapConsignmentIdsResponse(payload: unknown) {
-  if (!payload || typeof payload !== 'object') {
-    return payload
-  }
-
-  const data = payload as Record<string, unknown>
-  if (!Array.isArray(data.ids)) {
-    return payload
-  }
-
-  return {
-    consignmentIds: data.ids,
-  }
-}
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { buildProxyHeaders, buildTargetUrl } from '@/lib/api/legacy-proxy'
+import { mapIdsToLegacy } from '@/lib/api/legacy-mappers'
 
 // GET /api/consignments/ids -> /api/items/ids?type=consignment (compat: { consignmentIds })
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const newUrl = new URL('/api/items/ids', request.url)
-  newUrl.searchParams.set('type', 'consignment')
-  searchParams.forEach((value, key) => newUrl.searchParams.set(key, value))
+  const targetUrl = buildTargetUrl(request, '/api/items/ids')
+  targetUrl.searchParams.set('type', 'consignment')
+  searchParams.forEach((value, key) => targetUrl.searchParams.set(key, value))
 
-  const response = await fetch(newUrl, {
+  const response = await fetch(targetUrl, {
     method: 'GET',
     headers: buildProxyHeaders(request),
   })
@@ -47,5 +19,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(payload, { status: response.status })
   }
 
-  return NextResponse.json(mapConsignmentIdsResponse(payload), { status: response.status })
+  return NextResponse.json(mapIdsToLegacy(payload, 'consignmentIds'), { status: response.status })
 }

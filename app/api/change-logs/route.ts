@@ -12,16 +12,26 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20', 10)
+    const normalizedLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : 20
 
     const changeLogs = await prisma.changeLog.findMany({
       orderBy: { createdAt: 'desc' },
-      take: Math.min(limit, 100),  // 最大100件
+      take: normalizedLimit,  // 最大100件
     })
 
     // JSONで保存されているchangesをパースして返す
     const formattedLogs = changeLogs.map((log) => ({
       ...log,
-      changes: log.changes ? JSON.parse(log.changes) : null,
+      changes: (() => {
+        if (!log.changes) {
+          return null
+        }
+        try {
+          return JSON.parse(log.changes)
+        } catch {
+          return null
+        }
+      })(),
     }))
 
     return NextResponse.json(

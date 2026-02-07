@@ -1,48 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server'
-
-function buildProxyHeaders(request: NextRequest) {
-  const headers = new Headers()
-  const cookie = request.headers.get('cookie')
-  const authorization = request.headers.get('authorization')
-
-  if (cookie) {
-    headers.set('cookie', cookie)
-  }
-  if (authorization) {
-    headers.set('authorization', authorization)
-  }
-
-  return headers
-}
-
-function mapProductListResponse(payload: unknown) {
-  if (!payload || typeof payload !== 'object') {
-    return payload
-  }
-
-  const data = payload as Record<string, unknown>
-  if (!Array.isArray(data.items)) {
-    return payload
-  }
-
-  const { items, ...rest } = data
-  return {
-    products: items,
-    ...rest,
-  }
-}
+﻿import { NextRequest, NextResponse } from 'next/server'
+import { buildProxyHeaders, buildTargetUrl, forwardRequest } from '@/lib/api/legacy-proxy'
+import { mapItemsToLegacyList } from '@/lib/api/legacy-mappers'
 
 // GET /api/products -> /api/items?type=product (compat: { products, pagination })
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const newUrl = new URL('/api/items', request.url)
-  newUrl.searchParams.set('type', 'product')
+  const targetUrl = buildTargetUrl(request, '/api/items')
+  targetUrl.searchParams.set('type', 'product')
 
   searchParams.forEach((value, key) => {
-    newUrl.searchParams.set(key, value)
+    targetUrl.searchParams.set(key, value)
   })
 
-  const response = await fetch(newUrl, {
+  const response = await fetch(targetUrl, {
     method: 'GET',
     headers: buildProxyHeaders(request),
   })
@@ -52,11 +22,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(payload, { status: response.status })
   }
 
-  return NextResponse.json(mapProductListResponse(payload), { status: response.status })
+  return NextResponse.json(mapItemsToLegacyList(payload, 'products'), { status: response.status })
 }
 
 // POST /api/products -> /api/items (itemType=PRODUCT)
 export async function POST(request: NextRequest) {
-  const newUrl = new URL('/api/items', request.url)
-  return NextResponse.redirect(newUrl, { status: 307 })
+  const body = await request.json().catch(() => null)
+  const requestBody =
+    body && typeof body === 'object'
+      ? { ...(body as Record<string, unknown>), itemType: 'PRODUCT' }
+      : { itemType: 'PRODUCT' }
+
+  const { response, payload } = await forwardRequest({
+    request,
+    targetPath: '/api/items',
+    method: 'POST',
+    body: requestBody,
+    includeJsonContentType: true,
+  })
+
+  return NextResponse.json(payload, { status: response.status })
 }

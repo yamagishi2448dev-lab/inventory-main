@@ -13,7 +13,17 @@ import ImageUpload from '@/components/products/ImageUpload'
 import { useFilters } from '@/lib/hooks/useFilters'
 import type { ItemType } from '@/lib/types'
 
-export default function NewItemPage() {
+interface ItemCreatePageCoreProps {
+  forcedItemType?: ItemType
+  listPath?: string
+  hideTypeTabs?: boolean
+}
+
+export function ItemCreatePageCore({
+  forcedItemType,
+  listPath = '/items',
+  hideTypeTabs = false,
+}: ItemCreatePageCoreProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -22,7 +32,9 @@ export default function NewItemPage() {
 
   // アイテムタイプ
   const typeParam = searchParams.get('type') as ItemType | null
-  const [itemType, setItemType] = useState<ItemType>(typeParam === 'CONSIGNMENT' ? 'CONSIGNMENT' : 'PRODUCT')
+  const [itemType, setItemType] = useState<ItemType>(
+    forcedItemType || (typeParam === 'CONSIGNMENT' ? 'CONSIGNMENT' : 'PRODUCT')
+  )
 
   // フィルタデータを取得
   const { categories, manufacturers, locations, units, tags } = useFilters()
@@ -50,12 +62,17 @@ export default function NewItemPage() {
 
   // URLパラメータからitemTypeを同期
   useEffect(() => {
+    if (forcedItemType) {
+      setItemType(forcedItemType)
+      return
+    }
+
     if (typeParam === 'CONSIGNMENT') {
       setItemType('CONSIGNMENT')
     } else if (typeParam === 'PRODUCT') {
       setItemType('PRODUCT')
     }
-  }, [typeParam])
+  }, [typeParam, forcedItemType])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -109,7 +126,11 @@ export default function NewItemPage() {
       }
 
       alert(`${itemType === 'PRODUCT' ? '商品' : '委託品'}を登録しました`)
-      router.push(`/items?type=${itemType}`)
+      if (listPath === '/items') {
+        router.push(`/items?type=${itemType}`)
+      } else {
+        router.push(listPath)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '不明なエラーが発生しました')
     } finally {
@@ -127,12 +148,14 @@ export default function NewItemPage() {
       </div>
 
       {/* タイプ切り替え */}
-      <Tabs value={itemType} onValueChange={(value) => setItemType(value as ItemType)}>
-        <TabsList>
-          <TabsTrigger value="PRODUCT">商品</TabsTrigger>
-          <TabsTrigger value="CONSIGNMENT">委託品</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {!hideTypeTabs && !forcedItemType && (
+        <Tabs value={itemType} onValueChange={(value) => setItemType(value as ItemType)}>
+          <TabsList>
+            <TabsTrigger value="PRODUCT">商品</TabsTrigger>
+            <TabsTrigger value="CONSIGNMENT">委託品</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
 
       <Card>
         <CardHeader>
@@ -405,7 +428,7 @@ export default function NewItemPage() {
               <Button type="submit" disabled={loading}>
                 {loading ? '登録中...' : '登録'}
               </Button>
-              <Link href={`/items${itemType ? `?type=${itemType}` : ''}`}>
+              <Link href={listPath === '/items' ? `/items${itemType ? `?type=${itemType}` : ''}` : listPath}>
                 <Button type="button" variant="outline">
                   キャンセル
                 </Button>
@@ -416,4 +439,8 @@ export default function NewItemPage() {
       </Card>
     </div>
   )
+}
+
+export default function NewItemPage() {
+  return <ItemCreatePageCore />
 }

@@ -15,12 +15,13 @@ interface ChangeLogField {
 
 interface ChangeLog {
   id: string
-  entityType: 'product' | 'consignment'
+  entityType: 'item' | 'product' | 'consignment'
   entityId: string
   entityName: string
   entitySku: string
   action: 'create' | 'update' | 'delete'
   changes: { fields: ChangeLogField[] } | null
+  itemType?: 'PRODUCT' | 'CONSIGNMENT' | string | null
   userId: string
   userName: string
   createdAt: string
@@ -74,6 +75,9 @@ export function RecentChanges() {
   }
 
   const getEntityTypeLabel = (entityType: ChangeLog['entityType']) => {
+    if (entityType === 'item') {
+      return 'アイテム'
+    }
     switch (entityType) {
       case 'product':
         return '商品'
@@ -87,6 +91,15 @@ export function RecentChanges() {
   const getEntityLink = (log: ChangeLog) => {
     if (log.action === 'delete') {
       return null  // 削除された場合はリンクなし
+    }
+    if (log.entityType === 'item') {
+      if (log.itemType === 'CONSIGNMENT') {
+        return `/consignments/${log.entityId}`
+      }
+      if (log.itemType === 'PRODUCT') {
+        return `/products/${log.entityId}`
+      }
+      return `/items/${log.entityId}`
     }
     if (log.entityType === 'product') {
       return `/products/${log.entityId}`
@@ -144,7 +157,11 @@ export function RecentChanges() {
                           {getActionLabel(log.action)}
                         </Badge>
                         <span className="text-xs text-gray-500">
-                          {getEntityTypeLabel(log.entityType)}
+                          {log.entityType === 'item' && log.itemType === 'PRODUCT'
+                            ? '商品'
+                            : log.entityType === 'item' && log.itemType === 'CONSIGNMENT'
+                              ? '委託品'
+                              : getEntityTypeLabel(log.entityType)}
                         </span>
                       </div>
                       <div className="mt-1 font-medium truncate">

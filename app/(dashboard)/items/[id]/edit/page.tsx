@@ -24,17 +24,27 @@ interface ItemMaterial {
   order: number
 }
 
-export default function EditItemPage({ params }: { params: Promise<{ id: string }> }) {
+interface ItemEditPageCoreProps {
+  params: Promise<{ id: string }>
+  listPath?: string
+  forcedItemType?: ItemType
+}
+
+export function ItemEditPageCore({
+  params,
+  listPath = '/items',
+  forcedItemType,
+}: ItemEditPageCoreProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const returnQuery = searchParams.toString()
-  const backHref = returnQuery ? `/items?${returnQuery}` : '/items'
+  const backHref = returnQuery ? `${listPath}?${returnQuery}` : listPath
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [itemId, setItemId] = useState<string | null>(null)
   const [itemSku, setItemSku] = useState<string>('')
-  const [itemType, setItemType] = useState<ItemType>('PRODUCT')
+  const [itemType, setItemType] = useState<ItemType>(forcedItemType || 'PRODUCT')
   const [images, setImages] = useState<{ url: string; order: number }[]>([])
   const [materials, setMaterials] = useState<ItemMaterial[]>([])
 
@@ -80,7 +90,9 @@ export default function EditItemPage({ params }: { params: Promise<{ id: string 
 
         const item: ItemWithRelations = await response.json()
         setItemSku(item.sku)
-        setItemType(item.itemType as ItemType)
+        if (!forcedItemType) {
+          setItemType(item.itemType as ItemType)
+        }
         setFormData({
           name: item.name,
           manufacturerId: item.manufacturer?.id || '',
@@ -121,7 +133,7 @@ export default function EditItemPage({ params }: { params: Promise<{ id: string 
     }
 
     fetchItem()
-  }, [itemId])
+  }, [itemId, forcedItemType])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -519,4 +531,8 @@ export default function EditItemPage({ params }: { params: Promise<{ id: string 
       </div>
     </div>
   )
+}
+
+export default function EditItemPage({ params }: { params: Promise<{ id: string }> }) {
+  return <ItemEditPageCore params={params} />
 }
