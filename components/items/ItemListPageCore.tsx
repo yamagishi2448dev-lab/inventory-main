@@ -693,16 +693,104 @@ export default function ItemListPageCore({ mode }: ItemListPageCoreProps) {
 
   return (
     <div className="space-y-4">
-      {/* タブ: 種別切り替え */}
-      {config.allowTypeTabs && (
-        <Tabs value={itemType || 'all'} onValueChange={handleTypeChange} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="all">すべて</TabsTrigger>
-            <TabsTrigger value="PRODUCT">商品</TabsTrigger>
-            <TabsTrigger value="CONSIGNMENT">委託品</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      )}
+      {/* タブ: 種別切り替え + ビュー切替 + インポート/エクスポート */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* 左: タブ */}
+        {config.allowTypeTabs && (
+          <Tabs value={itemType || 'all'} onValueChange={handleTypeChange} className="w-full sm:w-auto">
+            <TabsList className="grid w-full sm:w-auto sm:inline-flex grid-cols-3">
+              <TabsTrigger value="all">すべて</TabsTrigger>
+              <TabsTrigger value="PRODUCT">商品</TabsTrigger>
+              <TabsTrigger value="CONSIGNMENT">委託品</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
+        {/* 右: ビュー切替 + インポート/エクスポート */}
+        <div className="flex items-center gap-2">
+          {/* ビュー切替ボタン群 */}
+          <div className="flex items-center border rounded-md p-0.5 bg-white">
+            <Button
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => handleViewModeChange('list')}
+              title="リスト表示"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => handleViewModeChange('grid')}
+              title="写真表示"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* デスクトップ: インポート/エクスポートボタン群 */}
+          <div className="hidden sm:flex items-center gap-2">
+            <a href={config.importTemplateEndpoint} download>
+              <Button variant="outline" size="sm" className="h-7 text-xs">
+                テンプレート
+              </Button>
+            </a>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={handleImportClick}
+              disabled={importing}
+            >
+              <Upload className="h-3 w-3 mr-1" />
+              {importing ? '取込中...' : 'インポート'}
+            </Button>
+            <a href={exportHref} download>
+              <Button variant="outline" size="sm" className="h-7 text-xs">
+                <Download className="h-3 w-3 mr-1" />
+                CSV
+              </Button>
+            </a>
+          </div>
+
+          {/* モバイル: メニューポップオーバー */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-7 text-xs sm:hidden">
+                <MoreHorizontal className="h-3.5 w-3.5 mr-1" />
+                メニュー
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-44 p-2">
+              <div className="flex flex-col gap-2">
+                <a href={config.importTemplateEndpoint} download>
+                  <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
+                    テンプレート
+                  </Button>
+                </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs justify-start"
+                  onClick={handleImportClick}
+                  disabled={importing}
+                >
+                  <Upload className="h-3 w-3 mr-1" />
+                  {importing ? '取込中...' : 'インポート'}
+                </Button>
+                <a href={exportHref} download>
+                  <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
+                    <Download className="h-3 w-3 mr-1" />
+                    CSV
+                  </Button>
+                </a>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
 
       {/* ヘッダー: タイトル、検索、アクションボタン */}
       <div className="rounded-lg border bg-white/70 p-4">
@@ -780,107 +868,20 @@ export default function ItemListPageCore({ mode }: ItemListPageCoreProps) {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {/* ビューモード切替 */}
-            <div className="flex items-center border rounded-md p-0.5 bg-white">
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => handleViewModeChange('list')}
-                title="リスト表示"
-              >
-                <List className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-7 w-7 p-0"
-                onClick={() => handleViewModeChange('grid')}
-                title="写真表示"
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-              </Button>
-            </div>
+          <div className="flex items-center gap-2 lg:justify-end">
+            {/* 印刷ボタン */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={handleOpenPrintView}
+              disabled={!hasSelection}
+            >
+              <Printer className="h-3 w-3 mr-1" />
+              印刷
+            </Button>
 
-            <div className="hidden sm:flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={handleOpenPrintView}
-                disabled={!hasSelection}
-              >
-                <Printer className="h-3 w-3 mr-1" />
-                印刷
-              </Button>
-              <a href={config.importTemplateEndpoint} download>
-                <Button variant="outline" size="sm" className="h-8 text-xs">
-                  テンプレート
-                </Button>
-              </a>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={handleImportClick}
-                disabled={importing}
-              >
-                <Upload className="h-3 w-3 mr-1" />
-                {importing ? '取込中...' : 'インポート'}
-              </Button>
-              <a href={exportHref} download>
-                <Button variant="outline" size="sm" className="h-8 text-xs">
-                  <Download className="h-3 w-3 mr-1" />
-                  CSV
-                </Button>
-              </a>
-            </div>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-xs sm:hidden">
-                  <MoreHorizontal className="h-3.5 w-3.5 mr-1" />
-                  その他
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-44 p-2">
-                <div className="flex flex-col gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs justify-start"
-                    onClick={handleOpenPrintView}
-                    disabled={!hasSelection}
-                  >
-                    <Printer className="h-3 w-3 mr-1" />
-                    印刷
-                  </Button>
-                  <a href={config.importTemplateEndpoint} download>
-                    <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
-                      テンプレート
-                    </Button>
-                  </a>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs justify-start"
-                    onClick={handleImportClick}
-                    disabled={importing}
-                  >
-                    <Upload className="h-3 w-3 mr-1" />
-                    {importing ? '取込中...' : 'インポート'}
-                  </Button>
-                  <a href={exportHref} download>
-                    <Button variant="outline" size="sm" className="h-8 text-xs w-full justify-start">
-                      <Download className="h-3 w-3 mr-1" />
-                      CSV
-                    </Button>
-                  </a>
-                </div>
-              </PopoverContent>
-            </Popover>
-
+            {/* 新規登録ボタン */}
             <Link href={newItemHref}>
               <Button size="sm" className="h-8 text-xs">新規登録</Button>
             </Link>
