@@ -11,12 +11,14 @@ import { RecentChanges } from '@/components/dashboard/RecentChanges'
 // SWR fetcher
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
-// v2.1 Stats interface
+// v3.0 Stats interface
 interface Stats {
   totalProducts: number
+  totalConsignments: number
   totalCategories: number
   totalManufacturers: number
   totalCost: string
+  totalListPrice: string
 }
 
 interface User {
@@ -61,39 +63,61 @@ export default function DashboardPage() {
     )
   }
 
-  // v2.1 統計カードを2つに削減
-  const statCards = stats
-    ? [
-      { title: '原価合計', value: formatPrice(stats.totalCost), description: '全商品の原価合計', highlight: true },
-      { title: '商品総数', value: stats.totalProducts.toLocaleString(), description: '登録されている商品' },
-    ]
-    : []
-
   return (
     <div className="space-y-8">
       {/* Title removed */}
 
-      {/* 統計カード v2.1 */}
+      {/* 統計カード v3.0 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat) => (
-          <Card
-            key={stat.title}
-            className={`card-shadow hover:card-shadow-hover hover:-translate-y-1 transition-all duration-200 ${stat.highlight ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200' : ''
-              }`}
-          >
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-gray-600">
-                {stat.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${stat.highlight ? 'text-blue-700' : ''}`}>
-                {stat.value}
+        {/* 原価・定価合計カード */}
+        <Card className="card-shadow hover:card-shadow-hover hover:-translate-y-1 transition-all duration-200 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              原価・定価合計
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <div className="text-xs text-gray-600 mb-1">原価合計</div>
+                <div className="text-2xl font-bold text-blue-700">
+                  {stats ? formatPrice(stats.totalCost) : '...'}
+                </div>
               </div>
-              <p className="text-sm text-gray-500 mt-1">{stat.description}</p>
-            </CardContent>
-          </Card>
-        ))}
+              <div className="border-t pt-2">
+                <div className="text-xs text-gray-600 mb-1">定価合計</div>
+                <div className="text-xl font-semibold text-blue-600">
+                  {stats ? formatPrice(stats.totalListPrice) : '...'}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 商品・委託品数カード */}
+        <Card className="card-shadow hover:card-shadow-hover hover:-translate-y-1 transition-all duration-200">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              アイテム数
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <div className="text-xs text-gray-600 mb-1">商品総数</div>
+                <div className="text-2xl font-bold">
+                  {stats ? stats.totalProducts.toLocaleString() : '...'}
+                </div>
+              </div>
+              <div className="border-t pt-2">
+                <div className="text-xs text-gray-600 mb-1">委託品数</div>
+                <div className="text-xl font-semibold">
+                  {stats ? stats.totalConsignments.toLocaleString() : '...'}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* v2.1追加: 運用ルールカード（2列分） */}
         <OperationRulesCard isAdmin={user?.role === 'ADMIN'} />
