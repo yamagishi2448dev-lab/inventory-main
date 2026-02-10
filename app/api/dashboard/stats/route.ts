@@ -17,8 +17,7 @@ export async function GET() {
       totalConsignments,
       totalCategories,
       totalManufacturers,
-      costResult,
-      listPriceResult
+      costResult
     ] = await Promise.all([
       // 商品数（itemType = 'PRODUCT'）
       prisma.item.count({ where: { itemType: 'PRODUCT' } }),
@@ -31,17 +30,10 @@ export async function GET() {
         SELECT COALESCE(SUM("costPrice" * quantity), 0) as total
         FROM items
         WHERE "itemType" = 'PRODUCT' AND "costPrice" IS NOT NULL
-      `,
-      // 定価合計（全アイテム、listPrice IS NOT NULLのもの）
-      prisma.$queryRaw<[{ total: number | null }]>`
-        SELECT COALESCE(SUM("listPrice" * quantity), 0) as total
-        FROM items
-        WHERE "listPrice" IS NOT NULL
       `
     ])
 
     const totalCost = costResult[0]?.total || 0
-    const totalListPrice = listPriceResult[0]?.total || 0
 
     return NextResponse.json({
       totalProducts,
@@ -49,7 +41,6 @@ export async function GET() {
       totalCategories,
       totalManufacturers,
       totalCost: Number(totalCost).toFixed(2),
-      totalListPrice: Number(totalListPrice).toFixed(2),
     })
   } catch (error) {
     console.error('統計情報取得エラー:', error)

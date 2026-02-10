@@ -18,7 +18,6 @@ interface Stats {
   totalCategories: number
   totalManufacturers: number
   totalCost: string
-  totalListPrice: string
 }
 
 interface User {
@@ -69,28 +68,18 @@ export default function DashboardPage() {
 
       {/* 統計カード v3.0 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* 原価・定価合計カード */}
+        {/* 原価合計カード */}
         <Card className="card-shadow hover:card-shadow-hover hover:-translate-y-1 transition-all duration-200 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-gray-600">
-              原価・定価合計
+              原価合計
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-gray-600 mb-1">原価合計</div>
-                <div className="text-2xl font-bold text-blue-700">
-                  {stats ? formatPrice(stats.totalCost) : '...'}
-                </div>
-              </div>
-              <div className="border-t pt-2">
-                <div className="text-xs text-gray-600 mb-1">定価合計</div>
-                <div className="text-xl font-semibold text-blue-600">
-                  {stats ? formatPrice(stats.totalListPrice) : '...'}
-                </div>
-              </div>
+            <div className="text-2xl font-bold text-blue-700">
+              {stats ? formatPrice(stats.totalCost) : '...'}
             </div>
+            <p className="text-sm text-gray-500 mt-1">全商品の原価合計</p>
           </CardContent>
         </Card>
 
