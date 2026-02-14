@@ -9,7 +9,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { Home, Package, Truck, FolderTree, Building2, MapPin, Ruler, Layers, Tag, ChevronDown, Database, LayoutList } from 'lucide-react'
+import { Home, Package, Truck, FolderTree, Building2, MapPin, Ruler, Layers, Tag, ChevronDown, Database, LayoutList, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // メイン項目
@@ -202,6 +202,11 @@ export function Sidebar() {
 
           {/* タグ設定（独立項目） */}
           {renderMenuItem({ name: 'タグ設定', href: '/tags', icon: Tag })}
+
+          <div className="my-4 border-t border-border/50 mx-2" />
+
+          {/* マニュアル */}
+          {renderMenuItem({ name: 'マニュアル', href: '/manual', icon: BookOpen })}
         </nav>
       </aside>
     </>

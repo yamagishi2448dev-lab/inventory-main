@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test'
+import { getE2eCredentials } from './helpers/auth'
 
 test.describe('Login Flow', () => {
+  const { username, password } = getE2eCredentials()
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/login')
   })
@@ -20,8 +23,8 @@ test.describe('Login Flow', () => {
     page,
   }) => {
     // Fill in login form
-    await page.fill('input#username', 'admin')
-    await page.fill('input#password', 'password123')
+    await page.fill('input#username', username)
+    await page.fill('input#password', password)
 
     // Submit form
     await page.click('button[type="submit"]')
@@ -39,7 +42,7 @@ test.describe('Login Flow', () => {
     page,
   }) => {
     // Fill in login form with wrong password
-    await page.fill('input#username', 'admin')
+    await page.fill('input#username', username)
     await page.fill('input#password', 'wrongpassword')
 
     // Submit form
@@ -74,11 +77,13 @@ test.describe('Login Flow', () => {
 })
 
 test.describe('Logout Flow', () => {
+  const { username, password } = getE2eCredentials()
+
   test.beforeEach(async ({ page }) => {
     // Login before each test
     await page.goto('/login')
-    await page.fill('input#username', 'admin')
-    await page.fill('input#password', 'password123')
+    await page.fill('input#username', username)
+    await page.fill('input#password', password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/dashboard')
   })
@@ -104,11 +109,13 @@ test.describe('Logout Flow', () => {
 })
 
 test.describe('Session Persistence', () => {
+  const { username, password } = getE2eCredentials()
+
   test('should maintain session across page refreshes', async ({ page }) => {
     // Login
     await page.goto('/login')
-    await page.fill('input#username', 'admin')
-    await page.fill('input#password', 'password123')
+    await page.fill('input#username', username)
+    await page.fill('input#password', password)
     await page.click('button[type="submit"]')
     await page.waitForURL('/dashboard')
 
