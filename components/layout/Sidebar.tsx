@@ -122,8 +122,7 @@ export function Sidebar() {
             </div>
             {isOpen && (
               <div className="flex flex-col items-start overflow-hidden">
-                <span className="font-bold text-slate-900 truncate">Inventory</span>
-                <span className="text-[10px] text-slate-500 font-medium">在庫管理システム</span>
+                <span className="font-bold text-slate-900 truncate">在庫管理システム</span>
               </div>
             )}
           </button>

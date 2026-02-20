@@ -10,7 +10,7 @@ test.describe('Login Flow', () => {
 
   test('should display login form', async ({ page }) => {
     // Check for page title
-    await expect(page.locator('text=Inventory')).toBeVisible()
+    await expect(page.locator('text=在庫管理システム')).toBeVisible()
     await expect(page.locator('text=アカウント情報を入力してログインしてください')).toBeVisible()
 
     // Check for username and password inputs

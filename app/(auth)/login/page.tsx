@@ -56,7 +56,7 @@ export default function LoginPage() {
           </div>
         </div>
         <div className="space-y-2">
-          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">Inventory</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight text-slate-900">在庫管理システム</CardTitle>
           <CardDescription className="text-slate-500">
             アカウント情報を入力してログインしてください
           </CardDescription>

@@ -6,7 +6,7 @@ import { SWRProvider } from "@/lib/hooks/swr-config";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Inventory - 在庫管理システム",
+  title: "在庫管理システム",
   description: "シンプルで使いやすい在庫管理システム",
 };
 
