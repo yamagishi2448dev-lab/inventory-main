@@ -184,18 +184,32 @@ model ItemTag {
 
 ---
 
-**最終更新日**: 2026-02-03
-**バージョン**: 3.0.0
+**最終更新日**: 2026-02-21
+**バージョン**: 3.1.0
 
 ---
 
 ## 運用メモ（トラブル/作業メモ）
 
-### v3.0 Item統合（2026-02-03）
+### 商品画像マッチング＆Cloudinaryアップロード（2026-02-21）
+- `商品画像/` フォルダ内の画像ファイルをDB商品名と突合し、Cloudinaryにアップロード
+- **結果**: 88件アップロード済み（52件は対応DBレコードなし、18件は重複SKUスキップ）
+- **スクリプト**（`scripts/` フォルダ）:
+  - `product-image-match.ts` — ドライラン。ファイル名とDB商品名を突合しCSVレポート出力
+  - `upload-product-images.ts` — 突合結果をもとにCloudinaryアップロード＋DB登録
+- **再実行方法**:
+  ```bash
+  # 突合（ドライラン）
+  npx tsx scripts/product-image-match.ts
+  # アップロード実行（Cloudinary環境変数が必要）
+  npx tsx --env-file=.env.local scripts/upload-product-images.ts --execute
+  ```
+- **注意**: 既存画像があるアイテムは自動スキップ。同一SKUに複数ファイルがマッチした場合は最高スコアのみ採用
+
+### v3.0 Item統合（2026-02-06）
 - Product/Consignment テーブルを Item テーブルに統合
 - 旧API（/api/products, /api/consignments）は307リダイレクトで/api/itemsへ転送
 - マイグレーション: `prisma/migrations/20260202_unify_product_consignment/`
-- 詳細は `TODO.md` の Phase 3.0 セクションを参照
 
 ### 過去のトラブル
 - 本番で商品詳細の「販売済み」トグル後にクライアント側でクラッシュ。
@@ -204,5 +218,5 @@ model ItemTag {
   直接 `product` として扱っていたこと。`response.product || response` で解消。
 - ローカルの `next dev` 起動で `.next/dev/lock` が残り起動不可。
   既存の `next dev` プロセスを止めてから再起動が必要。
-- `AGENTS.md` が `CLAUDE.md` を参照していたが、初期確認時に場所が見つからず。
-  実際は `Inventory/.claude/CLAUDE.md` に配置されていた。
+- スクリプトで `npx tsx --env-file=.env.local` を使わないとCloudinary環境変数が読まれない。
+  `.env.local` に Cloudinary設定がある場合は必ず `--env-file=.env.local` を付ける。

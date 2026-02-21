@@ -20,12 +20,12 @@
 - Git
 - PostgreSQL（開発環境含む）
 
-## 主要機能（v2.3）
+## 主要機能（v3.1）
 
 ### 商品・委託品管理
-- 商品/委託品のCRUD操作
+- 商品/委託品のCRUD操作（v3.0で統合: `Item`モデル、`itemType`で区別）
 - SKU自動採番（商品: `SKU-00001`、委託品: `CSG-00001`）
-- 画像管理（最大5枚、ドラッグ&ドロップ対応）
+- 画像管理（最大5枚、ドラッグ&ドロップ対応、Cloudinaryホスティング）
 - 素材情報管理（説明+画像）
 - タグによる分類（複数タグ付与、OR条件フィルタ）
 - 販売済み管理（フラグ+日時）
@@ -394,9 +394,29 @@ make dev
 
 ---
 
+## 運用スクリプト（`scripts/`）
+
+| スクリプト | 説明 |
+|-----------|------|
+| `product-image-match.ts` | `商品画像/ファイル一覧.csv` の画像とDB商品名を突合し `マッチング結果.csv` を出力 |
+| `upload-product-images.ts` | マッチング結果をもとにCloudinaryアップロード＋DB登録（`--execute` フラグで本番実行） |
+| `import-images.ts` | SKUフォルダ構成からのローカル画像インポート（旧方式） |
+| `query-items.ts` | DBの全アイテム一覧を確認するユーティリティ |
+| `fix-arrival-dates.ts` | 入荷年月データの修正ユーティリティ |
+
+```bash
+# 画像マッチング（ドライラン）
+npx tsx scripts/product-image-match.ts
+
+# 画像アップロード本番実行（Cloudinary環境変数が必要）
+npx tsx --env-file=.env.local scripts/upload-product-images.ts --execute
+```
+
+---
+
 ## ドキュメント
 
-- **[.claude/CLAUDE.md](./.claude/CLAUDE.md)** - 詳細な仕様書
+- **[.claude/CLAUDE.md](./.claude/CLAUDE.md)** - 詳細な仕様書（開発メモ含む）
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - デプロイメントガイド
 - **[TODO.md](./TODO.md)** - 実装計画と進捗
 
@@ -406,6 +426,8 @@ make dev
 
 | バージョン | 主な変更 |
 |-----------|---------|
+| v3.1.0 | 商品画像Cloudinaryアップロードスクリプト追加（88件登録済み） |
+| v3.0.0 | Product/Consignmentを`Item`モデルに統合（v3.0移行） |
 | v2.3.0 | designerフィールド追加 |
 | v2.2.0 | タグ機能追加 |
 | v2.1.0 | 委託品、素材、変更履歴、システム設定追加 |
